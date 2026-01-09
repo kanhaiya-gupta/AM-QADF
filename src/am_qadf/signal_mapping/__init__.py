@@ -11,6 +11,7 @@ from .methods import (
     LinearInterpolation,
     IDWInterpolation,
     GaussianKDEInterpolation,
+    RBFInterpolation,
 )
 
 from .execution import (
@@ -26,6 +27,7 @@ __all__ = [
     "LinearInterpolation",
     "IDWInterpolation",
     "GaussianKDEInterpolation",
+    "RBFInterpolation",
     # Execution
     "interpolate_to_voxels",
     "interpolate_hatching_paths",

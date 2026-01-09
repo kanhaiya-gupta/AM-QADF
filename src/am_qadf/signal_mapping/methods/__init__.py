@@ -9,6 +9,7 @@ from .nearest_neighbor import NearestNeighborInterpolation
 from .linear import LinearInterpolation
 from .idw import IDWInterpolation
 from .kde import GaussianKDEInterpolation
+from .rbf import RBFInterpolation
 
 __all__ = [
     "InterpolationMethod",
@@ -16,4 +17,5 @@ __all__ = [
     "LinearInterpolation",
     "IDWInterpolation",
     "GaussianKDEInterpolation",
+    "RBFInterpolation",
 ]

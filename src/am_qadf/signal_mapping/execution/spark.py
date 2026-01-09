@@ -125,7 +125,7 @@ class SparkNearestNeighbor(SparkInterpolationMethod):
         if not PYSPARK_AVAILABLE:
             raise ImportError("PySpark is required")
 
-        from .voxel_grid import VoxelGrid
+        from ...voxelization.voxel_grid import VoxelGrid
 
         # Calculate voxel indices
         calculate_voxel_idx = self._calculate_voxel_indices_udf(voxel_grid_config)
@@ -243,8 +243,6 @@ class SparkLinearInterpolation(SparkInterpolationMethod):
 
         # For now, fall back to nearest neighbor with spatial partitioning
         # Full k-NN implementation would require spatial indexing libraries
-        from .spark_interpolation import SparkNearestNeighbor
-
         nearest_method = SparkNearestNeighbor()
         return nearest_method.interpolate_spark(spark, points_df, voxel_grid_config)
 
@@ -290,8 +288,6 @@ class SparkIDWInterpolation(SparkInterpolationMethod):
         )
 
         # Simplified: use nearest neighbor for now
-        from .spark_interpolation import SparkNearestNeighbor
-
         nearest_method = SparkNearestNeighbor()
         return nearest_method.interpolate_spark(spark, points_df, voxel_grid_config)
 
@@ -343,18 +339,235 @@ class SparkGaussianKDE(SparkInterpolationMethod):
         # - Broadcast voxel centers
         # - Distributed kernel evaluation
         # - Aggregation of kernel contributions
-        from .spark_interpolation import SparkNearestNeighbor
-
         nearest_method = SparkNearestNeighbor()
         return nearest_method.interpolate_spark(spark, points_df, voxel_grid_config)
 
 
 # Method registry
+class SparkRBFInterpolation(SparkInterpolationMethod):
+    """
+    Spark-based Radial Basis Functions interpolation.
+
+    Strategy: For RBF's O(N³) complexity, we use a hybrid approach:
+    1. For small datasets (< 10,000 points): Use sequential RBF (more efficient)
+    2. For large datasets: Use distributed approximation with spatial partitioning
+    3. Partition points spatially, compute local RBF, then merge results
+
+    Note: Full distributed RBF with exact interpolation is computationally
+    challenging. This implementation provides a practical distributed approximation.
+    """
+
+    def __init__(
+        self,
+        kernel: str = "gaussian",
+        epsilon: Optional[float] = None,
+        smoothing: float = 0.0,
+        max_points_per_partition: int = 5000,
+        use_sequential_threshold: int = 10000,
+    ):
+        """
+        Initialize Spark RBF interpolation.
+
+        Args:
+            kernel: RBF kernel type
+            epsilon: Shape parameter (auto-estimated if None)
+            smoothing: Smoothing parameter (0.0 = exact interpolation)
+            max_points_per_partition: Maximum points per partition for distributed processing
+            use_sequential_threshold: Use sequential RBF if points < threshold
+        """
+        self.kernel = kernel
+        self.epsilon = epsilon
+        self.smoothing = smoothing
+        self.max_points_per_partition = max_points_per_partition
+        self.use_sequential_threshold = use_sequential_threshold
+
+    def interpolate_spark(
+        self,
+        spark: SparkSession,
+        points_df: DataFrame,
+        voxel_grid_config: Dict[str, Any],
+    ) -> Any:
+        """
+        Spark-based RBF interpolation.
+
+        Uses hybrid approach: sequential for small datasets, distributed for large ones.
+        """
+        if not PYSPARK_AVAILABLE:
+            raise ImportError("PySpark is required for Spark-based RBF interpolation")
+
+        # Get point count
+        n_points = points_df.count()
+
+        # For small datasets, sequential RBF is more efficient
+        if n_points < self.use_sequential_threshold:
+            logger.info(
+                f"Dataset size ({n_points:,}) is below threshold ({self.use_sequential_threshold:,}). "
+                "Using sequential RBF for better performance."
+            )
+            return self._sequential_rbf_fallback(spark, points_df, voxel_grid_config)
+
+        logger.info(
+            f"Using distributed RBF approximation for large dataset ({n_points:,} points). "
+            "This uses spatial partitioning and local RBF interpolation."
+        )
+
+        # For large datasets, use distributed approximation
+        return self._distributed_rbf_approximation(spark, points_df, voxel_grid_config)
+
+    def _sequential_rbf_fallback(
+        self,
+        spark: SparkSession,
+        points_df: DataFrame,
+        voxel_grid_config: Dict[str, Any],
+    ) -> Any:
+        """Fall back to sequential RBF for small datasets."""
+        from ...voxelization.voxel_grid import VoxelGrid
+        from ..methods.rbf import RBFInterpolation
+
+        # Collect points and signals from Spark DataFrame
+        rows = points_df.collect()
+
+        # Extract points and signals
+        points = np.array([[row.x, row.y, row.z] for row in rows])
+        signal_names = [col_name for col_name in points_df.columns if col_name not in ["x", "y", "z"]]
+        signals = {name: np.array([getattr(row, name) for row in rows]) for name in signal_names}
+
+        # Create voxel grid
+        voxel_grid = VoxelGrid(
+            bbox_min=voxel_grid_config["bbox_min"],
+            bbox_max=voxel_grid_config["bbox_max"],
+            resolution=voxel_grid_config["resolution"],
+            aggregation=voxel_grid_config.get("aggregation", "mean"),
+        )
+
+        # Use sequential RBF
+        rbf = RBFInterpolation(
+            kernel=self.kernel,
+            epsilon=self.epsilon,
+            smoothing=self.smoothing,
+        )
+        return rbf.interpolate(points, signals, voxel_grid)
+
+    def _distributed_rbf_approximation(
+        self,
+        spark: SparkSession,
+        points_df: DataFrame,
+        voxel_grid_config: Dict[str, Any],
+    ) -> Any:
+        """
+        Distributed RBF approximation using spatial partitioning.
+
+        Strategy:
+        1. Partition points spatially
+        2. Compute local RBF for each partition
+        3. Merge results at voxel level
+        """
+        from ...voxelization.voxel_grid import VoxelGrid
+        from ..methods.rbf import RBFInterpolation
+
+        logger.warning(
+            "Distributed RBF approximation is experimental. "
+            "For exact RBF interpolation, consider using sequential RBF for smaller datasets "
+            "or alternative methods (linear, IDW, KDE) for large datasets."
+        )
+
+        # For now, use a simplified approach: spatial partitioning with local RBF
+        # This is a practical approximation for very large datasets
+
+        # Partition points spatially using voxel-based partitioning
+        bbox_min = np.array(voxel_grid_config["bbox_min"])
+        bbox_max = np.array(voxel_grid_config["bbox_max"])
+        resolution = voxel_grid_config["resolution"]
+
+        # Calculate spatial partitions
+        # Use larger partition size to reduce overhead
+        partition_size = max(self.max_points_per_partition, 1000)
+
+        # Add partition ID based on spatial location
+        @udf(returnType=IntegerType())
+        def get_partition_id(x, y, z):
+            """Get partition ID based on spatial location."""
+            point = np.array([x, y, z])
+            normalized = (point - bbox_min) / (bbox_max - bbox_min)
+            # Simple spatial hashing
+            partition_x = int(normalized[0] * 4)  # 4 partitions per dimension
+            partition_y = int(normalized[1] * 4)
+            partition_z = int(normalized[2] * 4)
+            return partition_x * 16 + partition_y * 4 + partition_z
+
+        # Add partition column
+        points_df_partitioned = points_df.withColumn("partition_id", get_partition_id(col("x"), col("y"), col("z")))
+
+        # Process each partition
+        partitions = points_df_partitioned.select("partition_id").distinct().collect()
+        all_voxel_data = {}
+
+        for partition_row in partitions:
+            partition_id = partition_row.partition_id
+            partition_df = points_df_partitioned.filter(col("partition_id") == partition_id)
+
+            # Collect partition data
+            partition_rows = partition_df.collect()
+            if len(partition_rows) == 0:
+                continue
+
+            # Extract points and signals
+            partition_points = np.array([[row.x, row.y, row.z] for row in partition_rows])
+            signal_names = [col_name for col_name in partition_df.columns if col_name not in ["x", "y", "z", "partition_id"]]
+            partition_signals = {name: np.array([getattr(row, name) for row in partition_rows]) for name in signal_names}
+
+            # Create local voxel grid for partition
+            partition_voxel_grid = VoxelGrid(
+                bbox_min=voxel_grid_config["bbox_min"],
+                bbox_max=voxel_grid_config["bbox_max"],
+                resolution=voxel_grid_config["resolution"],
+                aggregation=voxel_grid_config.get("aggregation", "mean"),
+            )
+
+            # Apply local RBF
+            try:
+                rbf = RBFInterpolation(
+                    kernel=self.kernel,
+                    epsilon=self.epsilon,
+                    smoothing=self.smoothing,
+                )
+                local_result = rbf.interpolate(partition_points, partition_signals, partition_voxel_grid)
+
+                # Merge voxel data
+                for voxel_key, voxel_data in local_result.voxels.items():
+                    if voxel_key not in all_voxel_data:
+                        all_voxel_data[voxel_key] = {"signals": {}, "count": 0}
+                    # Merge signals (use mean for overlapping voxels)
+                    for signal_name, signal_value in voxel_data.get("signals", {}).items():
+                        if signal_name in all_voxel_data[voxel_key]["signals"]:
+                            # Average overlapping values
+                            existing = all_voxel_data[voxel_key]["signals"][signal_name]
+                            all_voxel_data[voxel_key]["signals"][signal_name] = (existing + signal_value) / 2.0
+                        else:
+                            all_voxel_data[voxel_key]["signals"][signal_name] = signal_value
+                    all_voxel_data[voxel_key]["count"] += voxel_data.get("count", 1)
+
+            except Exception as e:
+                logger.warning(f"Error processing partition {partition_id}: {e}. Skipping partition.")
+                continue
+
+        # Build final voxel grid
+        voxel_grid = VoxelGrid(
+            bbox_min=voxel_grid_config["bbox_min"],
+            bbox_max=voxel_grid_config["bbox_max"],
+            resolution=voxel_grid_config["resolution"],
+            aggregation=voxel_grid_config.get("aggregation", "mean"),
+        )
+        voxel_grid._build_voxel_grid_batch(all_voxel_data)
+        return voxel_grid
+
+
 SPARK_INTERPOLATION_METHODS = {
     "nearest": SparkNearestNeighbor,
     "linear": SparkLinearInterpolation,
     "idw": SparkIDWInterpolation,
     "gaussian_kde": SparkGaussianKDE,
+    "rbf": SparkRBFInterpolation,
 }
 
 
@@ -426,6 +639,10 @@ def points_to_spark_dataframe(spark: SparkSession, points: np.ndarray, signals: 
             else:
                 row[signal_name] = 0.0
         data.append(row)
+
+    # Handle empty dataset
+    if len(data) == 0:
+        raise ValueError("Cannot create Spark DataFrame from empty dataset. Points array is empty.")
 
     # Create DataFrame
     df = spark.createDataFrame(data)

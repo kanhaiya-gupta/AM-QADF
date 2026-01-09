@@ -14,6 +14,7 @@ from ..methods.nearest_neighbor import NearestNeighborInterpolation
 from ..methods.linear import LinearInterpolation
 from ..methods.idw import IDWInterpolation
 from ..methods.kde import GaussianKDEInterpolation
+from ..methods.rbf import RBFInterpolation
 from ...voxelization.voxel_grid import VoxelGrid
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ INTERPOLATION_METHODS = {
     "linear": LinearInterpolation,
     "idw": IDWInterpolation,
     "gaussian_kde": GaussianKDEInterpolation,
+    "rbf": RBFInterpolation,
 }
 
 

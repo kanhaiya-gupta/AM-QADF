@@ -7,6 +7,7 @@ to voxel grids:
 2. Linear interpolation
 3. IDW interpolation
 4. KDE interpolation
+5. RBF interpolation
 """
 
 import numpy as np
@@ -15,7 +16,8 @@ from am_qadf.signal_mapping.methods import (
     NearestNeighborInterpolation,
     LinearInterpolation,
     IDWInterpolation,
-    GaussianKDEInterpolation
+    GaussianKDEInterpolation,
+    RBFInterpolation,
 )
 
 
@@ -63,8 +65,13 @@ def main():
         ('Nearest Neighbor', NearestNeighborInterpolation()),
         ('Linear', LinearInterpolation(k_neighbors=8)),
         ('IDW', IDWInterpolation(power=2.0, k_neighbors=8)),
-        ('Gaussian KDE', GaussianKDEInterpolation(bandwidth=1.0))
+        ('Gaussian KDE', GaussianKDEInterpolation(bandwidth=1.0)),
+        ('RBF (Gaussian)', RBFInterpolation(kernel='gaussian', epsilon=1.0, smoothing=0.0))
     ]
+    
+    # Note: RBF has O(N³) complexity, so use with smaller datasets or Spark backend
+    print("\n   Note: RBF interpolation has O(N³) complexity.")
+    print("         For large datasets, consider using Spark backend or alternative methods.")
     
     print("\n3. Testing interpolation methods...")
     results = {}

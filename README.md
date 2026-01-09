@@ -71,7 +71,7 @@ flowchart TD
 
 ### 🧊 Voxel Domain Processing
 - **Voxelization**: Convert point cloud data to structured voxel grids
-- **Signal Mapping**: Interpolate signals onto voxel grids using multiple methods (Nearest Neighbor, Linear, IDW, KDE)
+- **Signal Mapping**: Interpolate signals onto voxel grids using multiple methods (Nearest Neighbor, Linear, IDW, KDE, RBF)
 - **Multi-Resolution**: Support for adaptive and multi-resolution grids
 
 ### ✅ Quality Assessment
@@ -272,6 +272,17 @@ For detailed guidelines, please see the [Contributing Guide](docs/AM_QADF/11-con
 
 ## 📄 License
 
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+This is a strong copyleft license that ensures:
+- ✅ Anyone can use, modify, and distribute the framework
+- ✅ **All modifications and extensions must also be open source** under AGPL-3.0
+- ✅ If used in a network/web service, the source code must be made available
+- ✅ The framework and all derivatives remain free and open
+
+**Why AGPL-3.0?** This license ensures that improvements and extensions to the AM-QADF framework remain open and accessible to the research and manufacturing community, promoting collaborative development and preventing proprietary forks.
+
+For the full license text, see [LICENSE](LICENSE) file.
 
 ## 🔗 Related Resources
 

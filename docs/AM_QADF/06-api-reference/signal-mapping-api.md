@@ -130,6 +130,83 @@ Perform Gaussian KDE interpolation.
 
 **Note**: Method name is `'gaussian_kde'` (not `'kde'`)
 
+### RBFInterpolation
+
+Radial Basis Functions interpolation providing exact interpolation at data points with smooth interpolation between points.
+
+```python
+from am_qadf.signal_mapping.methods import RBFInterpolation
+
+interpolator = RBFInterpolation(
+    kernel: str = 'gaussian',
+    epsilon: Optional[float] = None,
+    smoothing: float = 0.0,
+    use_sparse: bool = False,
+    max_points: Optional[int] = None
+)
+```
+
+#### Methods
+
+##### `interpolate(points: np.ndarray, signals: Dict[str, np.ndarray], voxel_grid: VoxelGrid) -> VoxelGrid`
+
+Perform RBF interpolation.
+
+**Parameters**:
+- `points` (np.ndarray): Array of points (N, 3)
+- `signals` (Dict[str, np.ndarray]): Dictionary mapping signal names to arrays
+- `voxel_grid` (VoxelGrid): Target voxel grid
+
+**Returns**: `VoxelGrid` with interpolated signals
+
+**Parameters**:
+- `kernel` (str): RBF kernel type. Options:
+  - `'gaussian'`: exp(-(epsilon*r)²) - Smooth, bounded
+  - `'multiquadric'`: sqrt(1 + (epsilon*r)²) - General purpose
+  - `'inverse_multiquadric'`: 1/sqrt(1 + (epsilon*r)²) - Smooth, bounded
+  - `'thin_plate_spline'`: r² * log(r) - Exact interpolation
+  - `'linear'`: r - Simple, fast
+  - `'cubic'`: r³ - Smooth
+  - `'quintic'`: r⁵ - Very smooth
+- `epsilon` (Optional[float]): Shape parameter for kernel. If None, auto-estimated based on point distribution
+- `smoothing` (float): Smoothing parameter. 0.0 = exact interpolation at data points (default)
+- `use_sparse` (bool): Use sparse matrices for large N (experimental, default: False)
+- `max_points` (Optional[int]): Maximum points before warning about performance (None = no limit)
+
+**Complexity**: O(N³) - Use Spark backend for large datasets (N > 10,000)
+
+**Example**:
+```python
+# Basic usage
+interpolator = RBFInterpolation(kernel='gaussian')
+result = interpolator.interpolate(
+    points=points_array,
+    signals={'power': power_array},
+    voxel_grid=grid
+)
+
+# With custom parameters
+interpolator = RBFInterpolation(
+    kernel='thin_plate_spline',
+    epsilon=1.0,
+    smoothing=0.0  # Exact interpolation
+)
+result = interpolator.interpolate(points, signals, grid)
+
+# With auto-estimated epsilon
+interpolator = RBFInterpolation(
+    kernel='gaussian',
+    epsilon=None  # Will be auto-estimated
+)
+result = interpolator.interpolate(points, signals, grid)
+```
+
+**Note**: 
+- Method name is `'rbf'`
+- For large datasets (N > 10,000), consider using Spark backend or alternative methods (linear, IDW, KDE) for better performance
+- RBF provides exact interpolation at data points when smoothing=0.0
+- Auto-estimated epsilon uses average nearest neighbor distance as a heuristic
+
 ---
 
 ## Execution Strategies

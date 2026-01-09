@@ -127,7 +127,7 @@ class TestInterpolationMethodBenchmarks:
             )
 
             points, signals = create_test_data(n_points=50000)
-            methods = ["nearest", "linear", "idw", "gaussian_kde"]
+            methods = ["nearest", "linear", "idw", "gaussian_kde", "rbf"]
             results = {}
 
             for method in methods:

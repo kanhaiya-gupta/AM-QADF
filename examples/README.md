@@ -19,6 +19,7 @@ This directory contains example scripts demonstrating how to use the AM-QADF fra
   - Linear interpolation
   - IDW interpolation
   - KDE interpolation
+  - RBF interpolation
 
 - **[fusion_example.py](fusion_example.py)** - Multi-source data fusion
   - Weighted average fusion

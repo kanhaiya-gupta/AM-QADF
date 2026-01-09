@@ -61,6 +61,7 @@ flowchart TB
         Linear["Linear Interpolation<br/>📊 Smooth"]
         IDW["IDW<br/>📏 Distance-Weighted"]
         KDE["KDE<br/>📈 Statistical"]
+        RBF["RBF<br/>🎯 Exact Interpolation"]
     end
 
     %% Execution Strategies
@@ -81,14 +82,17 @@ flowchart TB
     Points --> Linear
     Points --> IDW
     Points --> KDE
+    Points --> RBF
     Signals --> Nearest
     Signals --> Linear
     Signals --> IDW
     Signals --> KDE
+    Signals --> RBF
     Grid --> Nearest
     Grid --> Linear
     Grid --> IDW
     Grid --> KDE
+    Grid --> RBF
 
     Nearest --> Sequential
     Nearest --> Parallel
@@ -102,6 +106,8 @@ flowchart TB
     KDE --> Sequential
     KDE --> Parallel
     KDE --> Spark
+    RBF --> Sequential
+    RBF --> Spark
 
     Sequential --> VoxelGrid
     Parallel --> VoxelGrid
@@ -116,7 +122,7 @@ flowchart TB
     classDef output fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
 
     class Points,Signals,Grid input
-    class Nearest,Linear,IDW,KDE method
+    class Nearest,Linear,IDW,KDE,RBF method
     class Sequential,Parallel,Spark execution
     class VoxelGrid,Quality output
 ```
@@ -129,6 +135,7 @@ flowchart TB
 - **Linear Interpolation** (`linear.py`) - Smooth interpolation using k-nearest neighbors
 - **Inverse Distance Weighting (IDW)** (`idw.py`) - Distance-weighted interpolation
 - **Gaussian Kernel Density Estimation (KDE)** (`kde.py`) - Statistical density-based interpolation using Gaussian kernels
+- **Radial Basis Functions (RBF)** (`rbf.py`) - Exact interpolation at data points with smooth interpolation between
 
 ### Execution Strategies (`execution/`)
 
@@ -180,7 +187,8 @@ graph LR
         NN["Nearest Neighbor<br/>⚡ Fastest<br/>📊 Low Accuracy<br/>📦 Large Datasets"]
         LIN["Linear<br/>⚡ Moderate Speed<br/>📊 High Accuracy<br/>📦 General Purpose"]
         IDW_M["IDW<br/>⚡ Moderate Speed<br/>📊 High Accuracy<br/>📦 Distance Matters"]
-        KDE_M["KDE<br/>⚡ Slowest<br/>📊 Highest Accuracy<br/>📦 Statistical Analysis"]
+        KDE_M["KDE<br/>⚡ Slow<br/>📊 High Accuracy<br/>📦 Statistical Analysis"]
+        RBF_M["RBF<br/>⚡ Slowest<br/>📊 Highest Accuracy<br/>📦 Exact Interpolation"]
     end
 
     subgraph Selection["📋 Selection Guide"]
@@ -188,19 +196,21 @@ graph LR
         Balanced["Need Balance?<br/>→ Linear"]
         Distance["Distance Important?<br/>→ IDW"]
         Statistical["Statistical Analysis?<br/>→ KDE"]
+        Exact["Need Exact Interpolation?<br/>→ RBF"]
     end
 
     NN -.->|Use When| Fast
     LIN -.->|Use When| Balanced
     IDW_M -.->|Use When| Distance
     KDE_M -.->|Use When| Statistical
+    RBF_M -.->|Use When| Exact
 
     %% Styling
     classDef method fill:#e3f2fd,stroke:#0277bd,stroke-width:2px
     classDef guide fill:#fff3e0,stroke:#e65100,stroke-width:2px
 
-    class NN,LIN,IDW_M,KDE_M method
-    class Fast,Balanced,Distance,Statistical guide
+    class NN,LIN,IDW_M,KDE_M,RBF_M method
+    class Fast,Balanced,Distance,Statistical,Exact guide
 ```
 
 ### Nearest Neighbor
@@ -219,9 +229,15 @@ graph LR
 - **Use Case**: When distance matters
 
 ### Gaussian KDE (Gaussian Kernel Density Estimation)
-- **Speed**: Slowest
+- **Speed**: Slow
 - **Accuracy**: Highest (statistical)
 - **Use Case**: Statistical analysis, density estimation
+
+### RBF (Radial Basis Functions)
+- **Speed**: Slowest (O(N³) complexity)
+- **Accuracy**: Highest (exact interpolation at data points)
+- **Use Case**: High-accuracy requirements, exact interpolation needed
+- **Note**: Use Spark backend for large datasets (N > 10,000)
 - **Method Name**: `'gaussian_kde'` (not `'kde'`)
 
 ## Execution Strategies
