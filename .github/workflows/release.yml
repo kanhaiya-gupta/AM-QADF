@@ -54,7 +54,7 @@ jobs:
     
     - name: Run property-based tests
       run: |
-        pytest tests/property_based -m "property_based" -v --tb=short
+        pytest tests/property_based -m "property_based" -v --tb=short --no-cov
       continue-on-error: true
     
     - name: Generate test report

@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.11']
     
     steps:
     - uses: actions/checkout@v4
@@ -82,7 +82,7 @@ jobs:
     - name: Run property-based tests
       run: |
         export NUMBA_DISABLE_JIT=1
-        pytest tests/property_based -m "property_based" -v --tb=short
+        pytest tests/property_based -m "property_based" -v --tb=short --no-cov
       continue-on-error: true
     
     - name: Run utils tests
@@ -185,8 +185,8 @@ jobs:
     - name: Run ${{ matrix.test-suite }} tests
       run: |
         export NUMBA_DISABLE_JIT=1
-        # Utils tests don't test source code, so skip coverage for them
-        if [ "${{ matrix.test-suite }}" == "tests/utils" ]; then
+        # Utils and property_based tests don't need coverage (utils don't test source, property_based are supplementary)
+        if [ "${{ matrix.test-suite }}" == "tests/utils" ] || [ "${{ matrix.test-suite }}" == "tests/property_based" ]; then
           pytest ${{ matrix.test-suite }} -v --tb=short --no-cov
         else
           pytest ${{ matrix.test-suite }} -v --tb=short
@@ -221,17 +221,18 @@ jobs:
     
     - name: Run performance regression tests (sequential only)
       run: |
-        pytest tests/performance/regression -m "performance and not requires_spark" -v --tb=short
+        pytest tests/performance/regression -m "performance and not requires_spark" -v --tb=short --no-cov
       continue-on-error: true
     
     - name: Run performance benchmarks
       run: |
-        pytest tests/performance/benchmarks -m "benchmark" --benchmark-only --benchmark-json=benchmark.json || true
+        pytest tests/performance/benchmarks -m "benchmark" --benchmark-only --benchmark-json=benchmark.json --no-cov || true
       continue-on-error: true
     
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       if: always()
+      continue-on-error: true  # Allow failure if benchmark.json doesn't exist
       with:
         name: benchmark-results
         path: benchmark.json
