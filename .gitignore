@@ -1,0 +1,216 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+# Note: *.ipynb files in notebooks/ are tracked, only ignore checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+development.env
+production.env
+*.env
+
+# Docker
+docker-compose.override.yml
+docker/data/
+docker/volumes/
+*.log
+
+# MongoDB data
+data/mongodb/
+mongodb_data/
+
+# Spark data
+spark_data/
+data/spark/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Data files (large datasets)
+data/raw/
+data/processed/
+data/external/
+data_generation/
+*.h5
+*.hdf5
+*.parquet
+*.feather
+
+# Model files (large)
+models/
+# Note: *.pkl files in tests/fixtures/ are tracked (test data)
+# Only ignore model files, not test fixtures
+*.pickle
+*.joblib
+*.pb
+*.onnx
+# Ignore large model files but allow test fixtures
+!tests/fixtures/**/*.pkl
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+docs/html/
+docs/latex/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+test-results/
+test-reports/
+
+# CI/CD generated artifacts
+benchmark.json
+test_report.html
+bandit-report.json
+*.benchmark.json
+
+# Coverage reports
+.coverage
+coverage.xml
+*.cover
+.hypothesis/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local configuration
+config/local/
+config/*.local.*
+*.local.*
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Compressed files (if large)
+*.zip
+*.tar.gz
+*.rar
+
+# Database dumps
+*.sql
+*.dump
+
+# Secrets and credentials
+secrets/
+credentials/
+*.key
+*.pem
+*.cert
+*.crt
+
+# Infrastructure
+infrastructure/.env
+infrastructure/secrets/
+
+bin/
+
+implementation_plans/
+publications/
+
+# Docker volumes (if mounted locally)
+volumes/
+docker-volumes/
+
+# Generated reports and plots
+reports/*.html
+plots/
+# Generated test/coverage reports
+test_report.html
+*.report.html
+# But keep test reports directory structure
+!reports/.gitkeep
+
+# Old/backup notebooks
+notebooks_old/
+
+# Performance baseline files (auto-generated, but may want to track)
+# Uncomment if you want to ignore auto-generated baselines:
+# tests/performance/regression/performance_baselines.json
+# tests/performance/regression/memory_baselines.json

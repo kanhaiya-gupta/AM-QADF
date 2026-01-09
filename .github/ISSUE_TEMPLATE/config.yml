@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/kanhaiya-gupta/AM-QADF/tree/main/docs
+    about: Check the comprehensive documentation for answers
+  - name: 💬 Discussions
+    url: https://github.com/kanhaiya-gupta/AM-QADF/discussions
+    about: Ask questions and discuss with the community
+  - name: 📓 Notebooks
+    url: https://github.com/kanhaiya-gupta/AM-QADF/tree/main/docs/Notebook
+    about: Explore interactive notebooks for learning AM-QADF
+

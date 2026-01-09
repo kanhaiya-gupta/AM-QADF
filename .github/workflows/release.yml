@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-test:
+    name: Build and Test Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgl1 libglib2.0-0
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run full test suite
+      run: |
+        pytest tests/ -v --tb=short --cov=src/am_qadf --cov-report=xml --cov-report=term-missing --cov-fail-under=15
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/unit -m "unit" -v --tb=short
+    
+    - name: Run integration tests
+      run: |
+        pytest tests/integration -m "integration" -v --tb=short
+      continue-on-error: true
+    
+    - name: Run e2e tests
+      run: |
+        pytest tests/e2e -m "e2e" -v --tb=short
+      continue-on-error: true
+    
+    - name: Run property-based tests
+      run: |
+        pytest tests/property_based -m "property_based" -v --tb=short
+      continue-on-error: true
+    
+    - name: Generate test report
+      run: |
+        pytest tests/ --html=test_report.html --self-contained-html || true
+      continue-on-error: true
+    
+    - name: Upload test report
+      uses: actions/upload-artifact@v4
+      if: always()
+      continue-on-error: true  # Allow failure in local act runs (no ACTIONS_RUNTIME_TOKEN)
+      with:
+        name: test-report
+        path: test_report.html
+
+  documentation:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install documentation dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install sphinx sphinx-rtd-theme
+    
+    - name: Build documentation
+      run: |
+        # Create docs if they don't exist
+        mkdir -p docs/_build || true
+        echo "Documentation build placeholder"
+      continue-on-error: true
+    
+    - name: Validate notebooks for release
+      run: |
+        if [ -d "notebooks" ]; then
+          echo "📓 Validating notebooks for release..."
+          python scripts/test_notebooks.py notebooks/ --mode validate
+        else
+          echo "No notebooks directory found"
+        fi
+      continue-on-error: true
+    
+    - name: Execute notebooks for release (check runtime errors)
+      run: |
+        if [ -d "notebooks" ]; then
+          echo "🚀 Executing notebooks to check for runtime errors..."
+          # For release, test all notebooks with longer timeout
+          python scripts/test_notebooks.py notebooks/ --mode execute --timeout 600
+        else
+          echo "⚠️ Notebooks directory not found - skipping execution"
+        fi
+      continue-on-error: true
+      env:
+        NUMBA_DISABLE_JIT: 1
+        CI: true
+        GITHUB_ACTIONS: true
+

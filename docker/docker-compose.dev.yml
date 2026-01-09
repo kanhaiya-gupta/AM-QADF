@@ -1,0 +1,78 @@
+# Docker Compose for AM-QADF Framework
+# Local development environment with essential services
+
+services:
+  # MongoDB for Document Storage (AM-QADF Primary Database)
+  mongodb:
+    image: mongo:7.0
+    container_name: am-qadf-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-am_qadf_data}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-scripts/mongodb:/docker-entrypoint-initdb.d
+    networks:
+      - am-qadf-network
+    # Memory limits to prevent OOM kills
+    deploy:
+      resources:
+        limits:
+          memory: 4G  # Increase from default (usually 2G) for large batch processing
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Apache Spark for Signal Mapping (Optional - for distributed processing)
+  spark:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.spark
+    container_name: am-qadf-spark
+    env_file:
+      - ../development.env
+    environment:
+      SPARK_APP_NAME: am-qadf-spark
+      SPARK_MASTER: local[*]
+      SPARK_DRIVER_MEMORY: 2g
+      SPARK_EXECUTOR_MEMORY: 2g
+      SPARK_EXECUTOR_CORES: 2
+      PYTHONPATH: /opt/spark/src:/opt/spark/config
+    ports:
+      - "4040:4040"  # Spark UI
+      - "7077:7077"  # Spark Master
+    volumes:
+      - ../../src:/opt/spark/src
+      - ../../config:/opt/spark/config
+      - ../../data:/opt/spark/data
+      - spark_data:/opt/spark/data
+    networks:
+      - am-qadf-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4040"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+# Volumes
+volumes:
+  mongodb_data:
+    driver: local
+  spark_data:
+    driver: local
+
+# Networks
+networks:
+  am-qadf-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

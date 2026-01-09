@@ -1,0 +1,12 @@
+{
+  "signal_mapping_10k": 0.36238861083984375,
+  "signal_mapping_50k": 4.11250376701355,
+  "signal_mapping_200k": 47.052541971206665,
+  "voxel_fusion_small": 0.1,
+  "voxel_fusion_medium": 1.0,
+  "voxel_fusion_large": 10.0,
+  "interpolation_nearest": 4.0223400592803955,
+  "interpolation_linear": 5.0,
+  "interpolation_idw": 10.0,
+  "parallel_4_workers": 4.041044235229492
+}

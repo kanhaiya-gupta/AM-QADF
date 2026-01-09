@@ -1,0 +1,62 @@
+[tool.black]
+line-length = 127
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | __pycache__
+  | notebooks
+  | data
+  | outputs
+)/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+no_strict_optional = true
+explicit_package_bases = true
+# Allow redefinition of names (common in dynamic imports)
+allow_redefinition = true
+# Disable error codes that are mostly false positives in this codebase:
+# - no-redef: Dynamic imports cause redefinition warnings
+# - attr-defined: False positives with "None" and "object" types
+# - index: Indexing errors on "object" and "None" types (false positives)
+# - operator: Operator errors on "object" types (false positives)
+# - call-overload: List() call errors with "object" (false positives)
+# - var-annotated: Missing type annotations (not critical for runtime)
+# - return-value: Return type mismatches (mostly numpy type issues)
+# - arg-type: Argument type mismatches (mostly numpy type issues)
+# - dict-item: Dict item type mismatches (mostly numpy type issues)
+# - annotation-unchecked: Untyped function bodies (not critical)
+# - misc: Cannot assign to type (false positives from dynamic imports)
+# - no-any-return: Functions returning numpy arrays that mypy can't fully infer
+disable_error_code = [
+    "no-redef",
+    "attr-defined",
+    "index",
+    "operator",
+    "call-overload",
+    "var-annotated",
+    "return-value",
+    "arg-type",
+    "dict-item",
+    "annotation-unchecked",
+    "misc",
+    "no-any-return",
+]

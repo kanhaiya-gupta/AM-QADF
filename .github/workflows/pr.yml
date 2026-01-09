@@ -1,0 +1,140 @@
+name: PR Checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to check'
+        required: false
+        type: string
+      branch:
+        description: 'Target branch'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - develop
+      run_quick_tests:
+        description: 'Run quick validation tests'
+        required: false
+        default: true
+        type: boolean
+      run_format_check:
+        description: 'Run format check'
+        required: false
+        default: true
+        type: boolean
+      execute_notebooks:
+        description: 'Execute notebooks to check for errors'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  pr-checks:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_quick_tests != 'false'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Check for test files
+      run: |
+        if [ -z "$(find tests/ -name 'test_*.py' -type f)" ]; then
+          echo "⚠️ Warning: No test files found"
+        else
+          echo "✓ Test files found"
+        fi
+    
+    - name: Run quick validation tests
+      run: |
+        pytest tests/unit -m "unit" -v --tb=line -x
+    
+    - name: Check import structure
+      run: |
+        python -c "import sys; sys.path.insert(0, '.'); from am_qadf import *; print('✓ Imports work correctly')" || echo "⚠️ Import check failed, but continuing"
+      continue-on-error: true
+    
+    - name: Validate pytest configuration
+      run: |
+        pytest --collect-only -q || true
+    
+    - name: Quick notebook validation
+      run: |
+        if [ -d "notebooks" ]; then
+          NOTEBOOK_COUNT=$(find notebooks -name "*.ipynb" | wc -l)
+          echo "Found $NOTEBOOK_COUNT notebook(s) in PR"
+          python scripts/test_notebooks.py notebooks/ --mode validate
+        else
+          echo "No notebooks directory found - skipping"
+        fi
+      continue-on-error: true
+    
+    - name: Execute notebooks (if requested)
+      if: github.event.inputs.execute_notebooks == 'true'
+      run: |
+        if [ -d "notebooks" ]; then
+          echo "🚀 Executing notebooks to check for runtime errors (PR: first 5 notebooks)..."
+          # For PR checks, limit to first 5 notebooks to save time
+          python scripts/test_notebooks.py notebooks/ --mode execute --timeout 180 --limit 5
+        else
+          echo "⚠️ Notebooks directory not found - skipping execution"
+        fi
+      continue-on-error: true
+      env:
+        NUMBA_DISABLE_JIT: 1
+        CI: true
+        GITHUB_ACTIONS: true
+
+  format-check:
+    name: Code Format Check
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_format_check != 'false'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install Black
+      run: |
+        pip install black
+    
+    - name: Check code formatting
+      run: |
+        black --check src/ tests/ || (echo "❌ Code formatting issues found. Run 'black src/ tests/' to fix." && exit 1)
+    
+    - name: Comment PR with formatting suggestions
+      if: failure()
+      uses: actions/github-script@v6
+      continue-on-error: true  # Allow failure in local act runs (no GitHub token)
+      with:
+        script: |
+          const prNumber = parseInt('${{ github.event.inputs.pr_number }}');
+          github.rest.issues.createComment({
+            issue_number: prNumber,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '⚠️ Code formatting issues detected. Please run `black src/ tests/` to format your code.'
+          })
+
+
