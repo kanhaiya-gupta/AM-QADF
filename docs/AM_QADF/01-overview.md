@@ -8,19 +8,26 @@
 
 ```mermaid
 flowchart TD
-    Start([Manufacturing Data Sources<br/>📊 Multiple Sensors & Systems]) --> Collect["Collect Data<br/>🔍 Gather All Information"]
+    Hatching["🛤️ Hatching Paths<br/>Path Coordinates"] --> Query["Unified Query<br/>🔍 Query Interface"]
+    Laser["⚡ Laser Parameters<br/>Power & Speed"] --> Query
+    CT["🔬 CT Scans<br/>Defect Detection"] --> Query
+    ISPM["🌡️ In-Situ Monitoring<br/>Sensor Data"] --> Query
+    Thermal["🔥 Thermal Data<br/>Heat Distribution"] --> Query
+    Metadata["📋 Build Metadata<br/>Process Parameters"] --> Query
     
-    Collect --> Align["Align Data<br/>⏰ Match Time & Space"]
+    Query --> Sync["Synchronization<br/>⏰ Temporal & Spatial Alignment"]
     
-    Align --> SignalMap["Signal Mapping<br/>🧊 Map to 3D Structure"]
+    Sync --> SignalMap["Signal Mapping<br/>🧊 Map to 3D Structure"]
     
-    SignalMap --> Clean["Clean Data<br/>🔧 Remove Errors"]
+    SignalMap --> Correction["Correction<br/>📐 Geometric Distortion & Calibration"]
     
-    Clean --> Combine["Combine Data<br/>🔀 Merge All Sources"]
+    Correction --> Processing["Signal Processing<br/>🔧 Noise Reduction"]
     
-    Combine --> Check["Check Quality<br/>✅ Verify Data"]
+    Processing --> Fusion["Data Fusion<br/>🔀 Multi-Source Fusion"]
     
-    Check --> Analyze{"What to Do?<br/>📋"}
+    Fusion --> Quality["Quality Assessment<br/>✅ Quality Evaluation"]
+    
+    Quality --> Analyze{"What to Do?<br/>📋"}
     
     Analyze -->|Understand Patterns| Stats["Statistical Analysis<br/>📈 Find Trends"]
     Analyze -->|Find Important Factors| Sensitivity["Sensitivity Analysis<br/>🔬 Key Parameters"]
@@ -46,8 +53,8 @@ flowchart TD
     classDef output fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
     classDef action fill:#ffccbc,stroke:#d84315,stroke-width:3px
 
-    class Start input
-    class Collect,Align,SignalMap,Clean,Combine,Check process
+    class Hatching,Laser,CT,ISPM,Thermal,Metadata input
+    class Query,Sync,SignalMap,Correction,Processing,Fusion,Quality process
     class Analyze decision
     class Stats,Sensitivity,Anomaly,Process,Virtual analysis
     class Visualize,Report output

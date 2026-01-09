@@ -5,7 +5,7 @@
   "voxel_fusion_small": 0.1,
   "voxel_fusion_medium": 1.0,
   "voxel_fusion_large": 10.0,
-  "interpolation_nearest": 4.0223400592803955,
+  "interpolation_nearest": 5.7504894733428955,
   "interpolation_linear": 5.0,
   "interpolation_idw": 10.0,
   "parallel_4_workers": 4.041044235229492
