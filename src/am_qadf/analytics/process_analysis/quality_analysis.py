@@ -105,6 +105,10 @@ class QualityAnalyzer:
             X = X[valid_mask]
             y = y[valid_mask]
 
+            # Check if we have enough data for train/test split
+            if len(X) < 2:
+                raise ValueError(f"Insufficient data for train_test_split: {len(X)} samples (need at least 2)")
+
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
                 X,
@@ -262,11 +266,17 @@ class QualityAnalyzer:
 
 
 class QualityPredictor(QualityAnalyzer):
-    """Specialized quality predictor."""
+    """
+    Enhanced specialized quality predictor with early defect detection,
+    time-series forecasting, and validation capabilities.
+    """
 
     def __init__(self, config: QualityAnalysisConfig = None):
         super().__init__(config)
         self.method_name = "QualityPredictor"
+        self._early_defect_predictor = None
+        self._time_series_predictor = None
+        self._prediction_validator = None
 
     def predict(
         self,
@@ -304,3 +314,161 @@ class QualityPredictor(QualityAnalyzer):
         predictions = self.trained_model.predict(X)
 
         return predictions
+
+    def predict_early_defect(
+        self,
+        partial_process_data: pd.DataFrame,
+        build_progress: float,
+        defect_labels: Optional[np.ndarray] = None,
+        feature_names: List[str] = None,
+        train_model: bool = True,
+    ):
+        """
+        Predict defects early in build using partial build data.
+
+        Args:
+            partial_process_data: Process data from partial build
+            build_progress: Build progress (0.0-1.0)
+            defect_labels: Binary labels (0=no defect, 1=defect) for training (if train_model=True)
+            feature_names: Feature names (optional)
+            train_model: Whether to train model first (requires defect_labels)
+
+        Returns:
+            EarlyDefectPredictionResult with predictions
+        """
+        try:
+            from .prediction.early_defect_predictor import EarlyDefectPredictor, PredictionConfig
+
+            if self._early_defect_predictor is None or train_model:
+                if defect_labels is None:
+                    raise ValueError("defect_labels required when train_model=True")
+
+                # Initialize predictor with config matching current config
+                pred_config = PredictionConfig(
+                    model_type=self.config.model_type if hasattr(self.config, "model_type") else "random_forest",
+                    random_seed=self.config.random_seed,
+                )
+                self._early_defect_predictor = EarlyDefectPredictor(pred_config)
+
+                # Train model
+                result = self._early_defect_predictor.train_early_prediction_model(
+                    partial_process_data, defect_labels, feature_names
+                )
+                return result
+            else:
+                # Use existing model to predict
+                defect_probability, prediction_confidence = self._early_defect_predictor.predict_early_defect(
+                    partial_process_data, build_progress
+                )
+                # Return a simple result structure
+                from .prediction.early_defect_predictor import EarlyDefectPredictionResult
+
+                return EarlyDefectPredictionResult(
+                    success=True,
+                    model_type=self._early_defect_predictor.config.model_type,
+                    defect_probability=defect_probability,
+                    defect_prediction=(defect_probability > 0.5).astype(int),
+                    prediction_confidence=prediction_confidence,
+                    early_prediction_accuracy=0.0,  # Not available without labels
+                    prediction_horizon=self._early_defect_predictor.config.early_prediction_horizon,
+                    model_performance={},
+                    feature_importance=self._early_defect_predictor.get_feature_importance(),
+                )
+        except ImportError as e:
+            logger.error(f"Error importing early defect predictor: {e}")
+            raise ValueError("Early defect prediction module not available")
+        except Exception as e:
+            logger.error(f"Error in early defect prediction: {e}")
+            from .prediction.early_defect_predictor import EarlyDefectPredictionResult
+
+            return EarlyDefectPredictionResult(
+                success=False,
+                model_type="unknown",
+                defect_probability=np.array([]),
+                defect_prediction=np.array([]),
+                prediction_confidence=np.array([]),
+                early_prediction_accuracy=0.0,
+                prediction_horizon=100,
+                model_performance={},
+                feature_importance={},
+                error_message=str(e),
+            )
+
+    def forecast_quality_timeseries(
+        self, historical_quality: np.ndarray, forecast_horizon: int = 10, model_type: str = "arima"
+    ):
+        """
+        Forecast quality using time-series model.
+
+        Args:
+            historical_quality: Historical quality values (1D array)
+            forecast_horizon: Number of steps ahead to forecast
+            model_type: Type of time-series model ('arima', 'exponential_smoothing', 'moving_average', 'prophet')
+
+        Returns:
+            TimeSeriesPredictionResult with forecast and confidence intervals
+        """
+        try:
+            from .prediction.time_series_predictor import TimeSeriesPredictor, PredictionConfig
+
+            if self._time_series_predictor is None:
+                pred_config = PredictionConfig(
+                    time_series_forecast_horizon=forecast_horizon, random_seed=self.config.random_seed
+                )
+                self._time_series_predictor = TimeSeriesPredictor(pred_config)
+
+            result = self._time_series_predictor.forecast_quality_metric(historical_quality, forecast_horizon, model_type)
+            return result
+
+        except ImportError as e:
+            logger.error(f"Error importing time-series predictor: {e}")
+            raise ValueError("Time-series prediction module not available")
+        except Exception as e:
+            logger.error(f"Error in time-series forecasting: {e}")
+            from .prediction.time_series_predictor import TimeSeriesPredictionResult
+
+            return TimeSeriesPredictionResult(
+                success=False,
+                model_type=model_type,
+                forecast=np.array([]),
+                forecast_lower_bound=np.array([]),
+                forecast_upper_bound=np.array([]),
+                forecast_horizon=forecast_horizon,
+                historical_data=historical_quality,
+                model_performance={},
+                error_message=str(e),
+            )
+
+    def cross_validate(
+        self, process_data: pd.DataFrame, quality_target: str, n_folds: int = 5, validation_method: str = "kfold"
+    ) -> Dict[str, float]:
+        """
+        Perform cross-validation on quality prediction model.
+
+        Args:
+            process_data: DataFrame containing process data
+            quality_target: Name of quality target variable
+            n_folds: Number of folds for cross-validation
+            validation_method: Cross-validation method ('kfold', 'stratified', 'time_series_split')
+
+        Returns:
+            Dictionary with mean and std of performance metrics across folds
+        """
+        try:
+            from .prediction.prediction_validator import PredictionValidator, PredictionConfig
+
+            if self._prediction_validator is None:
+                pred_config = PredictionConfig(n_folds=n_folds, random_seed=self.config.random_seed)
+                self._prediction_validator = PredictionValidator(pred_config)
+
+            cv_results = self._prediction_validator.cross_validate_model(
+                self, process_data, quality_target, n_folds, validation_method
+            )
+            return cv_results
+
+        except ImportError as e:
+            logger.error(f"Error importing prediction validator: {e}")
+            raise ValueError("Prediction validation module not available")
+        except Exception as e:
+            logger.error(f"Error in cross-validation: {e}")
+            return {"error": str(e), "n_folds": n_folds, "validation_method": validation_method}

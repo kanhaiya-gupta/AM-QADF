@@ -1,6 +1,6 @@
 # AM-QADF Framework
 
-**AM-QADF** (Additive Manufacturing Quality Assessment and Data Fusion) is a comprehensive Python framework for processing, analyzing, and visualizing multi-source additive manufacturing data. It provides a unified interface for querying diverse data sources, mapping signals to voxel domains, performing quality assessment, and conducting advanced analytics.
+**AM-QADF** (Additive Manufacturing Quality Assessment and Data Fusion) is a comprehensive Python framework for processing, analyzing, and visualizing multi-source additive manufacturing data. It provides a unified interface for querying diverse data sources, mapping signals to voxel domains, performing quality assessment, conducting advanced analytics, and deploying production-ready monitoring and control systems.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/kanhaiya-gupta/AM-QADF)
@@ -28,17 +28,22 @@ flowchart TD
     
     Fusion --> Quality["Quality Assessment<br/>✅ Quality Evaluation"]
     
+    Quality --> Validate["Validation & Benchmarking<br/>🔬 Verify Results"]
     Quality --> Analyze{"What to Do?<br/>📋"}
+    
+    Validate --> Analyze
     
     Analyze -->|Understand Patterns| Stats["Statistical Analysis<br/>📈 Find Trends"]
     Analyze -->|Find Important Factors| Sensitivity["Sensitivity Analysis<br/>🔬 Key Parameters"]
     Analyze -->|Detect Problems| Anomaly["Anomaly Detection<br/>🚨 Find Defects"]
-    Analyze -->|Optimize Process| Process["Process Analysis<br/>⚙️ Improve Manufacturing"]
+    Analyze -->|Control Process| SPC["Statistical Process Control<br/>📊 Control Charts"]
+    Analyze -->|Optimize & Predict| Process["Process Optimization<br/>⚙️ Predict & Improve"]
     Analyze -->|Test Scenarios| Virtual["Virtual Experiments<br/>🧪 Simulate Changes"]
     
     Stats --> Visualize["Visualize Results<br/>📊 3D Views & Charts"]
     Sensitivity --> Visualize
     Anomaly --> Visualize
+    SPC --> Visualize
     Process --> Visualize
     Virtual --> Visualize
     
@@ -47,7 +52,7 @@ flowchart TD
     Report --> Decision([Make Decisions<br/>✅ Improve Manufacturing])
     
     %% Styling
-    classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    classDef input fill:#f5f5f5,stroke:#424242,stroke-width:3px
     classDef process fill:#e3f2fd,stroke:#0277bd,stroke-width:2px
     classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:3px
     classDef analysis fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
@@ -55,9 +60,9 @@ flowchart TD
     classDef action fill:#ffccbc,stroke:#d84315,stroke-width:3px
     
     class Hatching,Laser,CT,ISPM,Thermal,Metadata input
-    class Query,Sync,SignalMap,Correction,Processing,Fusion,Quality process
+    class Query,Sync,SignalMap,Correction,Processing,Fusion,Quality,Validate process
     class Analyze decision
-    class Stats,Sensitivity,Anomaly,Process,Virtual analysis
+    class Stats,Sensitivity,Anomaly,SPC,Process,Virtual analysis
     class Visualize,Report output
     class Decision action
 ```
@@ -74,21 +79,52 @@ flowchart TD
 - **Signal Mapping**: Interpolate signals onto voxel grids using multiple methods (Nearest Neighbor, Linear, IDW, KDE, RBF)
 - **Multi-Resolution**: Support for adaptive and multi-resolution grids
 
-### ✅ Quality Assessment
+### ✅ Quality Assessment & Validation
 - **Completeness**: Assess data coverage and identify gaps
 - **Signal Quality**: Evaluate signal-to-noise ratios and data quality
 - **Alignment Accuracy**: Validate coordinate system alignments
+- **Validation & Benchmarking**: Compare framework results with MPM systems, validate against ground truth
+- **Performance Benchmarking**: Measure processing time, memory usage, and data volume reduction
 
 ### 📊 Advanced Analytics
 - **Statistical Analysis**: Descriptive statistics, correlation, trends, patterns
 - **Sensitivity Analysis**: Sobol, Morris, and other sensitivity methods
 - **Virtual Experiments**: Parameter optimization and design of experiments
 - **Process Analysis**: Sensor analysis, parameter optimization
+- **Process Optimization & Prediction**: Early defect prediction, time-series forecasting, multi-objective optimization
+- **Model Tracking**: Model registry, performance tracking, drift detection
+
+### 📈 Statistical Process Control (SPC)
+- **Control Charts**: X-bar, R, S, Individual, Moving Range charts with adaptive limits
+- **Process Capability**: Cp, Cpk, Pp, Ppk indices and rating
+- **Multivariate SPC**: Hotelling T², PCA-based monitoring
+- **Control Rules**: Western Electric and Nelson rules for out-of-control detection
+- **Baseline Management**: Calculate and update control limits from historical data
 
 ### 🚨 Anomaly Detection
 - **Multiple Algorithms**: Statistical, clustering, ML-based, rule-based detectors
 - **Ensemble Methods**: Combine multiple detectors for robust detection
 - **Voxel-Level Analysis**: Detect anomalies in spatial data
+
+### 📡 Real-Time Monitoring & Streaming
+- **Data Streaming**: Kafka integration for real-time data consumption
+- **Incremental Processing**: Process streaming data incrementally to update voxel grids
+- **Buffer Management**: Temporal windows and buffer management for streaming data
+- **Live Dashboards**: Real-time quality dashboards with WebSocket updates
+- **Alert System**: Multi-channel alert generation and management (Email, SMS, Dashboard)
+- **Threshold Management**: Dynamic threshold checking (absolute, relative, rate-of-change, SPC-based)
+- **Health Monitoring**: System and process health monitoring with health scores
+
+### 🏭 Production Deployment & Industrial Integration
+- **Production Configuration**: Environment-based configuration management with secrets management
+- **Scalability**: Horizontal and vertical scaling with load balancing and auto-scaling
+- **Fault Tolerance**: Retry policies, circuit breakers, and graceful degradation
+- **Resource Monitoring**: System and process resource monitoring (CPU, memory, disk, network)
+- **Performance Tuning**: Profiling, optimization, and tuning recommendations
+- **MPM Integration**: Integration with Manufacturing Process Management systems
+- **Equipment Integration**: Connection to manufacturing equipment (3D printers, sensors, PLCs)
+- **API Gateway**: REST API for industrial access with versioning and middleware
+- **Authentication & Authorization**: JWT, OAuth2, API key authentication with RBAC
 
 ### 🎨 Visualization
 - **3D Rendering**: Interactive 3D visualization of voxel data using PyVista
@@ -166,7 +202,7 @@ See [Infrastructure Documentation](docs/Infrastructure/README.md) for details.
 - **[Quick Start](docs/AM_QADF/04-quick-start.md)** - Get started with examples
 - **[Modules](docs/AM_QADF/05-modules/README.md)** - Detailed module documentation
 - **[API Reference](docs/AM_QADF/06-api-reference/README.md)** - Complete API documentation
-- **[📓 Interactive Notebooks](docs/Notebook/README.md)** - 23 interactive Jupyter notebooks with widget-based interfaces for exploring framework capabilities
+- **[📓 Interactive Notebooks](docs/Notebook/README.md)** - 28 interactive Jupyter notebooks with widget-based interfaces for exploring framework capabilities
 - **[Examples](examples/README.md)** - Example scripts and workflows
 - **[Testing](docs/Tests/README.md)** - Testing documentation and guides
 
@@ -186,7 +222,17 @@ AM-QADF/
 │   │   ├── fusion/            # Multi-modal data fusion
 │   │   ├── quality/           # Quality assessment
 │   │   ├── analytics/         # Advanced analytics
+│   │   │   ├── spc/           # Statistical Process Control
+│   │   │   ├── process_analysis/  # Process analysis & optimization
+│   │   │   │   ├── prediction/    # Early defect prediction, forecasting
+│   │   │   │   └── model_tracking/ # Model registry & performance tracking
+│   │   │   └── ...
+│   │   ├── validation/        # Validation & benchmarking
 │   │   ├── anomaly_detection/ # Anomaly detection
+│   │   ├── streaming/         # Real-time data streaming
+│   │   ├── monitoring/        # Real-time monitoring & alerts
+│   │   ├── deployment/        # Production deployment utilities
+│   │   ├── integration/       # Industrial system integration
 │   │   ├── visualization/     # 3D visualization
 │   │   └── voxel_domain/      # Voxel domain orchestrator
 │   │
@@ -197,10 +243,12 @@ AM-QADF/
 ├── docs/
 │   ├── AM_QADF/              # Framework documentation
 │   ├── Infrastructure/       # Infrastructure documentation
+│   ├── Notebook/             # Interactive notebooks documentation
 │   └── Tests/                # Testing documentation
 │
+├── notebooks/                # Interactive Jupyter notebooks (28 notebooks)
 ├── examples/                 # Example scripts
-├── tests/                    # Test suite
+├── tests/                    # Test suite (unit, integration, performance, e2e)
 ├── docker/                   # Docker configuration
 └── data_generation/          # Data generation utilities
 ```
@@ -210,6 +258,8 @@ AM-QADF/
 - **Python**: 3.9 or higher
 - **MongoDB**: 7.0+ (for data storage)
 - **Optional**: Apache Spark (for distributed processing)
+- **Optional**: Kafka (for real-time streaming)
+- **Optional**: Redis (for caching and queue management)
 
 ### Core Dependencies
 - `numpy` - Numerical computing
@@ -218,10 +268,17 @@ AM-QADF/
 - `pymongo` - MongoDB client
 
 ### Optional Dependencies
-- `pyspark` - Apache Spark
+- `pyspark` - Apache Spark (distributed processing)
 - `scikit-learn` - Machine learning algorithms
 - `pyvista` - 3D visualization
 - `matplotlib` - Plotting
+- `seaborn` - Statistical visualization
+- `kafka-python` or `confluent-kafka` - Kafka integration (for streaming)
+- `redis` - Redis client (for caching)
+- `websockets` - WebSocket support (for live dashboards)
+- `psutil` - System resource monitoring
+- `requests` - HTTP client (for API integration)
+- `PyJWT` - JWT authentication support
 
 ## 🧪 Testing
 

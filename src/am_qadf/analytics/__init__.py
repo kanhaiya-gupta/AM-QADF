@@ -68,6 +68,24 @@ from .reporting import (
     AnalysisDocumentation,
 )
 
+# Statistical Process Control
+from .spc import (
+    SPCClient,
+    SPCConfig,
+    ControlChartGenerator,
+    ControlChartResult,
+    BaselineCalculator,
+    BaselineStatistics,
+    AdaptiveLimitsCalculator,
+    ProcessCapabilityAnalyzer,
+    ProcessCapabilityResult,
+    MultivariateSPCAnalyzer,
+    MultivariateSPCResult,
+    ControlRuleDetector,
+    ControlRuleViolation,
+    SPCStorage,
+)
+
 __all__ = [
     # Sensitivity Analysis
     "SensitivityAnalysisConfig",
@@ -114,4 +132,19 @@ __all__ = [
     "AnalysisReportGenerator",
     "AnalysisVisualizer",
     "AnalysisDocumentation",
+    # Statistical Process Control
+    "SPCClient",
+    "SPCConfig",
+    "ControlChartGenerator",
+    "ControlChartResult",
+    "BaselineCalculator",
+    "BaselineStatistics",
+    "AdaptiveLimitsCalculator",
+    "ProcessCapabilityAnalyzer",
+    "ProcessCapabilityResult",
+    "MultivariateSPCAnalyzer",
+    "MultivariateSPCResult",
+    "ControlRuleDetector",
+    "ControlRuleViolation",
+    "SPCStorage",
 ]

@@ -487,12 +487,33 @@ class QualityDashboardGenerator:
 
     This class provides capabilities to generate quality dashboards from
     quality assessment data stored in MongoDB or provided directly.
+    Supports historical, real-time, and comparison dashboards.
     """
 
     def __init__(self, config: VisualizationConfig = None):
         """Initialize the quality dashboard generator."""
         self.config = config or VisualizationConfig()
         logger.info("Quality Dashboard Generator initialized")
+
+        # Try to import validation module for comparison features
+        try:
+            from ...validation import ValidationClient
+
+            self.validation_available = True
+            logger.info("Validation module available - comparison features enabled")
+        except ImportError:
+            self.validation_available = False
+            logger.warning("Validation module not available - comparison features disabled")
+
+        # Try to import SPC module for control charts
+        try:
+            from ..spc import SPCClient, ControlChartResult
+
+            self.spc_available = True
+            logger.info("SPC module available - control charts enabled")
+        except ImportError:
+            self.spc_available = False
+            logger.warning("SPC module not available - control charts disabled")
 
     def generate_dashboard(
         self,
@@ -537,6 +558,15 @@ class QualityDashboardGenerator:
             # Generate metrics summary
             metrics_path = self._plot_quality_metrics(quality_data)
             plot_paths.append(metrics_path)
+
+            # Generate SPC control charts if available and data supports it
+            if self.spc_available and len(quality_data) >= 10:
+                try:
+                    spc_charts_path = self._plot_spc_control_charts(quality_data)
+                    if spc_charts_path:
+                        plot_paths.append(spc_charts_path)
+                except Exception as e:
+                    logger.warning(f"Could not generate SPC control charts: {e}")
 
             generation_time = (datetime.now() - start_time).total_seconds()
 
@@ -669,6 +699,600 @@ class QualityDashboardGenerator:
         # Save plot
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         plot_path = f"{self.config.output_directory}/quality_metrics_{timestamp}.{self.config.save_format}"
+        plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+        plt.close()
+
+        return plot_path
+
+    def _plot_spc_control_charts(self, quality_data: pd.DataFrame) -> Optional[str]:
+        """Plot SPC control charts for quality metrics."""
+        if not self.spc_available:
+            return None
+
+        try:
+            from ..spc import SPCClient, SPCConfig, ControlChartResult
+
+            # Create SPC client
+            spc_config = SPCConfig(control_limit_sigma=3.0, subgroup_size=5, enable_warnings=True)
+            spc_client = SPCClient(config=spc_config)
+
+            # Identify metrics suitable for control charts (numeric columns with enough data)
+            metrics_cols = [
+                col
+                for col in quality_data.columns
+                if col not in ["timestamp"] and quality_data[col].dtype in ["float64", "int64"]
+            ]
+
+            if len(metrics_cols) == 0 or len(quality_data) < 10:
+                logger.warning("Insufficient data for control charts")
+                return None
+
+            # Create subplots for control charts
+            n_metrics = min(len(metrics_cols), 4)  # Limit to 4 charts
+            fig, axes = plt.subplots(n_metrics, 1, figsize=(12, 3 * n_metrics))
+            if n_metrics == 1:
+                axes = [axes]
+
+            plot_paths = []
+
+            for idx, metric_col in enumerate(metrics_cols[:n_metrics]):
+                try:
+                    # Get metric values
+                    values = quality_data[metric_col].dropna().values
+
+                    if len(values) < 10:
+                        axes[idx].text(
+                            0.5,
+                            0.5,
+                            f"Insufficient data for {metric_col}",
+                            ha="center",
+                            va="center",
+                            transform=axes[idx].transAxes,
+                        )
+                        axes[idx].set_title(f"Control Chart: {metric_col}")
+                        continue
+
+                    # Create control chart
+                    chart_result = spc_client.create_control_chart(values, chart_type="individual", config=spc_config)
+
+                    # Plot control chart
+                    sample_indices = chart_result.sample_indices
+                    sample_values = chart_result.sample_values
+
+                    # Plot data points
+                    axes[idx].plot(
+                        sample_indices, sample_values, "b-", marker="o", markersize=3, label="Data", linewidth=1, alpha=0.7
+                    )
+
+                    # Plot center line
+                    axes[idx].axhline(
+                        chart_result.center_line,
+                        color="g",
+                        linestyle="-",
+                        linewidth=2,
+                        label=f"CL: {chart_result.center_line:.3f}",
+                    )
+
+                    # Plot control limits
+                    axes[idx].axhline(
+                        chart_result.upper_control_limit,
+                        color="r",
+                        linestyle="--",
+                        linewidth=1.5,
+                        label=f"UCL: {chart_result.upper_control_limit:.3f}",
+                    )
+                    axes[idx].axhline(
+                        chart_result.lower_control_limit,
+                        color="r",
+                        linestyle="--",
+                        linewidth=1.5,
+                        label=f"LCL: {chart_result.lower_control_limit:.3f}",
+                    )
+
+                    # Plot warning limits if available
+                    if chart_result.upper_warning_limit is not None:
+                        axes[idx].axhline(
+                            chart_result.upper_warning_limit,
+                            color="orange",
+                            linestyle=":",
+                            linewidth=1,
+                            alpha=0.7,
+                            label="UWL",
+                        )
+                    if chart_result.lower_warning_limit is not None:
+                        axes[idx].axhline(
+                            chart_result.lower_warning_limit,
+                            color="orange",
+                            linestyle=":",
+                            linewidth=1,
+                            alpha=0.7,
+                            label="LWL",
+                        )
+
+                    # Highlight out-of-control points
+                    if chart_result.out_of_control_points:
+                        ooc_indices = [sample_indices[i] for i in chart_result.out_of_control_points]
+                        ooc_values = [sample_values[i] for i in chart_result.out_of_control_points]
+                        axes[idx].scatter(
+                            ooc_indices,
+                            ooc_values,
+                            color="red",
+                            marker="x",
+                            s=100,
+                            zorder=5,
+                            label=f"OOC ({len(chart_result.out_of_control_points)})",
+                        )
+
+                    axes[idx].set_xlabel("Sample Index")
+                    axes[idx].set_ylabel(metric_col)
+                    axes[idx].set_title(f"Control Chart: {metric_col} (Type: {chart_result.chart_type})")
+                    axes[idx].legend(loc="upper right", fontsize=8)
+                    axes[idx].grid(True, alpha=0.3)
+
+                except Exception as e:
+                    logger.warning(f"Error creating control chart for {metric_col}: {e}")
+                    axes[idx].text(0.5, 0.5, f"Error: {str(e)[:50]}", ha="center", va="center", transform=axes[idx].transAxes)
+                    axes[idx].set_title(f"Control Chart: {metric_col} (Error)")
+
+            plt.suptitle("SPC Control Charts for Quality Metrics", fontsize=14, fontweight="bold")
+            plt.tight_layout(rect=[0, 0, 1, 0.98])
+
+            # Save plot
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            plot_path = f"{self.config.output_directory}/spc_control_charts_{timestamp}.{self.config.save_format}"
+            plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+            plt.close()
+
+            return plot_path
+
+        except ImportError as e:
+            logger.warning(f"SPC module not available for control charts: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error generating SPC control charts: {e}")
+            return None
+
+    def add_spc_control_charts(
+        self,
+        dashboard: VisualizationResult,
+        quality_data: Union[pd.DataFrame, Dict[str, Any]],
+        metric_names: Optional[List[str]] = None,
+    ) -> VisualizationResult:
+        """
+        Add SPC control charts to existing dashboard.
+
+        Args:
+            dashboard: Existing dashboard VisualizationResult
+            quality_data: Quality data (DataFrame or dict)
+            metric_names: Optional list of metric names to create charts for
+
+        Returns:
+            Updated VisualizationResult with control charts added
+        """
+        if not self.spc_available:
+            logger.warning("SPC module not available, cannot add control charts")
+            return dashboard
+
+        try:
+            # Convert to DataFrame if needed
+            if isinstance(quality_data, dict):
+                quality_df = pd.DataFrame([quality_data])
+            else:
+                quality_df = quality_data.copy()
+
+            # Generate control charts
+            spc_path = self._plot_spc_control_charts(quality_df)
+
+            if spc_path:
+                # Add to existing plot paths
+                dashboard.plot_paths.append(spc_path)
+                logger.info(f"Added SPC control charts to dashboard: {spc_path}")
+
+            return dashboard
+
+        except Exception as e:
+            logger.error(f"Error adding SPC control charts: {e}")
+            return dashboard
+
+    def create_comparison_dashboard(
+        self,
+        framework_data: Union[pd.DataFrame, Dict[str, Any]],
+        reference_data: Union[pd.DataFrame, Dict[str, Any]],
+        comparison_type: str = "mpm",
+        output_path: Optional[str] = None,
+    ) -> VisualizationResult:
+        """
+        Create comparison dashboard showing framework vs. reference (MPM or ground truth).
+
+        Args:
+            framework_data: Framework-generated quality data
+            reference_data: Reference quality data (MPM system or ground truth)
+            comparison_type: Type of comparison ('mpm', 'ground_truth', 'baseline')
+            output_path: Optional path to save dashboard
+
+        Returns:
+            VisualizationResult with comparison dashboard plots
+        """
+        if not self.validation_available:
+            return VisualizationResult(
+                success=False,
+                visualization_type="ComparisonDashboard",
+                plot_paths=[],
+                generation_time=0.0,
+                error_message="Validation module not available. Install validation module for comparison features.",
+            )
+
+        try:
+            start_time = datetime.now()
+
+            # Convert to DataFrames if needed
+            if isinstance(framework_data, dict):
+                framework_df = pd.DataFrame([framework_data])
+            else:
+                framework_df = framework_data.copy()
+
+            if isinstance(reference_data, dict):
+                reference_df = pd.DataFrame([reference_data])
+            else:
+                reference_df = reference_data.copy()
+
+            plot_paths = []
+
+            # Generate side-by-side comparison plot
+            comparison_path = self._plot_side_by_side_comparison(framework_df, reference_df, comparison_type)
+            plot_paths.append(comparison_path)
+
+            # Generate correlation plot
+            correlation_path = self._plot_correlation_comparison(framework_df, reference_df, comparison_type)
+            plot_paths.append(correlation_path)
+
+            # Generate difference plot
+            difference_path = self._plot_difference_analysis(framework_df, reference_df, comparison_type)
+            plot_paths.append(difference_path)
+
+            generation_time = (datetime.now() - start_time).total_seconds()
+
+            result = VisualizationResult(
+                success=True,
+                visualization_type=f"ComparisonDashboard_{comparison_type}",
+                plot_paths=plot_paths,
+                generation_time=generation_time,
+            )
+
+            logger.info(f"Comparison dashboard generated: {generation_time:.2f}s")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error generating comparison dashboard: {e}")
+            return VisualizationResult(
+                success=False,
+                visualization_type="ComparisonDashboard",
+                plot_paths=[],
+                generation_time=0.0,
+                error_message=str(e),
+            )
+
+    def add_validation_metrics(
+        self,
+        dashboard: VisualizationResult,
+        validation_results: Dict[str, Any],
+        output_path: Optional[str] = None,
+    ) -> VisualizationResult:
+        """
+        Add validation metrics to existing dashboard.
+
+        Args:
+            dashboard: Existing dashboard VisualizationResult
+            validation_results: Validation results from ValidationClient
+            output_path: Optional path to save updated dashboard
+
+        Returns:
+            Updated VisualizationResult with validation plots added
+        """
+        if not self.validation_available:
+            logger.warning("Validation module not available, skipping validation metrics")
+            return dashboard
+
+        try:
+            plot_paths = list(dashboard.plot_paths) if dashboard.plot_paths else []
+
+            # Add validation summary plot
+            if "mpm_comparison" in validation_results:
+                validation_path = self._plot_validation_summary(validation_results)
+                plot_paths.append(validation_path)
+
+            # Add accuracy metrics plot if available
+            if "accuracy" in validation_results and validation_results["accuracy"]:
+                accuracy_path = self._plot_accuracy_metrics(validation_results["accuracy"])
+                plot_paths.append(accuracy_path)
+
+            # Add statistical test results if available
+            if "statistical" in validation_results and validation_results["statistical"]:
+                stat_path = self._plot_statistical_results(validation_results["statistical"])
+                plot_paths.append(stat_path)
+
+            updated_result = VisualizationResult(
+                success=True,
+                visualization_type=f"{dashboard.visualization_type}_with_validation",
+                plot_paths=plot_paths,
+                generation_time=dashboard.generation_time,
+            )
+
+            return updated_result
+
+        except Exception as e:
+            logger.error(f"Error adding validation metrics: {e}")
+            return dashboard
+
+    def _plot_side_by_side_comparison(
+        self,
+        framework_df: pd.DataFrame,
+        reference_df: pd.DataFrame,
+        comparison_type: str,
+    ) -> str:
+        """Plot side-by-side comparison of metrics."""
+        # Find common metrics
+        common_metrics = set(framework_df.columns) & set(reference_df.columns)
+        common_metrics = [m for m in common_metrics if framework_df[m].dtype in ["float64", "int64"]]
+
+        if not common_metrics:
+            common_metrics = ["overall_score", "completeness", "coverage", "consistency"]
+
+        n_metrics = min(len(common_metrics), 4)
+        fig, axes = plt.subplots(2, 2, figsize=self.config.figure_size)
+        axes = axes.flatten()
+
+        for idx, metric in enumerate(common_metrics[:n_metrics]):
+            if metric in framework_df.columns and metric in reference_df.columns:
+                framework_vals = framework_df[metric].dropna()
+                reference_vals = reference_df[metric].dropna()
+
+                if len(framework_vals) > 0 and len(reference_vals) > 0:
+                    x = np.arange(max(len(framework_vals), len(reference_vals)))
+                    width = 0.35
+
+                    axes[idx].bar(
+                        x[: len(framework_vals)] - width / 2,
+                        framework_vals.values,
+                        width,
+                        label="Framework",
+                        alpha=self.config.alpha,
+                    )
+                    axes[idx].bar(
+                        x[: len(reference_vals)] + width / 2,
+                        reference_vals.values,
+                        width,
+                        label=comparison_type.title(),
+                        alpha=self.config.alpha,
+                    )
+
+                    axes[idx].set_xlabel("Sample")
+                    axes[idx].set_ylabel(metric.replace("_", " ").title())
+                    axes[idx].set_title(f'{metric.replace("_", " ").title()} Comparison')
+                    axes[idx].legend()
+                    axes[idx].grid(True, alpha=0.3)
+
+        plt.suptitle(f"Framework vs. {comparison_type.title()} Comparison")
+        plt.tight_layout()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_path = f"{self.config.output_directory}/comparison_side_by_side_{timestamp}.{self.config.save_format}"
+        plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+        plt.close()
+
+        return plot_path
+
+    def _plot_correlation_comparison(
+        self,
+        framework_df: pd.DataFrame,
+        reference_df: pd.DataFrame,
+        comparison_type: str,
+    ) -> str:
+        """Plot correlation between framework and reference metrics."""
+        common_metrics = set(framework_df.columns) & set(reference_df.columns)
+        common_metrics = [m for m in common_metrics if framework_df[m].dtype in ["float64", "int64"]]
+
+        if not common_metrics:
+            return ""
+
+        fig, ax = plt.subplots(figsize=self.config.figure_size)
+
+        for metric in common_metrics[:5]:  # Limit to 5 metrics
+            framework_vals = framework_df[metric].dropna()
+            reference_vals = reference_df[metric].dropna()
+
+            min_len = min(len(framework_vals), len(reference_vals))
+            if min_len > 0:
+                framework_subset = framework_vals[:min_len]
+                reference_subset = reference_vals[:min_len]
+
+                # Calculate correlation
+                try:
+                    correlation = np.corrcoef(framework_subset, reference_subset)[0, 1]
+                    if not np.isnan(correlation):
+                        ax.scatter(
+                            framework_subset,
+                            reference_subset,
+                            alpha=self.config.alpha,
+                            label=f"{metric} (r={correlation:.3f})",
+                        )
+                except Exception:
+                    pass
+
+        # Add diagonal line
+        ax.plot([0, 1], [0, 1], "r--", alpha=0.5, label="Perfect agreement")
+
+        ax.set_xlabel("Framework Values")
+        ax.set_ylabel(f"{comparison_type.title()} Values")
+        ax.set_title(f"Framework vs. {comparison_type.title()} Correlation")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_path = f"{self.config.output_directory}/comparison_correlation_{timestamp}.{self.config.save_format}"
+        plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+        plt.close()
+
+        return plot_path
+
+    def _plot_difference_analysis(
+        self,
+        framework_df: pd.DataFrame,
+        reference_df: pd.DataFrame,
+        comparison_type: str,
+    ) -> str:
+        """Plot difference analysis between framework and reference."""
+        common_metrics = set(framework_df.columns) & set(reference_df.columns)
+        common_metrics = [m for m in common_metrics if framework_df[m].dtype in ["float64", "int64"]]
+
+        if not common_metrics:
+            return ""
+
+        differences = {}
+        for metric in common_metrics:
+            framework_vals = framework_df[metric].dropna()
+            reference_vals = reference_df[metric].dropna()
+            min_len = min(len(framework_vals), len(reference_vals))
+            if min_len > 0:
+                diff = framework_vals[:min_len].values - reference_vals[:min_len].values
+                differences[metric] = diff
+
+        if not differences:
+            return ""
+
+        fig, axes = plt.subplots(2, 2, figsize=self.config.figure_size)
+        axes = axes.flatten()
+
+        for idx, (metric, diff) in enumerate(list(differences.items())[:4]):
+            axes[idx].hist(diff, bins=20, alpha=self.config.alpha, edgecolor="black")
+            axes[idx].axvline(np.mean(diff), color="r", linestyle="--", label=f"Mean: {np.mean(diff):.4f}")
+            axes[idx].axvline(0, color="k", linestyle="-", alpha=0.3, label="Zero difference")
+            axes[idx].set_xlabel("Difference (Framework - Reference)")
+            axes[idx].set_ylabel("Frequency")
+            axes[idx].set_title(f'{metric.replace("_", " ").title()} Differences')
+            axes[idx].legend()
+            axes[idx].grid(True, alpha=0.3)
+
+        plt.suptitle(f"Framework vs. {comparison_type.title()} Difference Analysis")
+        plt.tight_layout()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_path = f"{self.config.output_directory}/comparison_difference_{timestamp}.{self.config.save_format}"
+        plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+        plt.close()
+
+        return plot_path
+
+    def _plot_validation_summary(self, validation_results: Dict[str, Any]) -> str:
+        """Plot validation summary from validation results."""
+        fig, ax = plt.subplots(figsize=self.config.figure_size)
+
+        if "mpm_comparison" in validation_results:
+            mpm_results = validation_results["mpm_comparison"]
+            if isinstance(mpm_results, dict):
+                metrics = []
+                correlations = []
+                for metric_name, result in mpm_results.items():
+                    if result and hasattr(result, "correlation"):
+                        metrics.append(metric_name.replace("_", " ").title()[:20])
+                        correlations.append(result.correlation)
+
+                if metrics:
+                    ax.barh(metrics, correlations, alpha=self.config.alpha)
+                    ax.axvline(0.85, color="r", linestyle="--", label="Threshold (0.85)")
+                    ax.set_xlabel("Correlation Coefficient")
+                    ax.set_ylabel("Metric")
+                    ax.set_title("MPM Comparison - Correlation Summary")
+                    ax.legend()
+                    ax.grid(True, alpha=0.3, axis="x")
+
+        plt.tight_layout()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_path = f"{self.config.output_directory}/validation_summary_{timestamp}.{self.config.save_format}"
+        plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+        plt.close()
+
+        return plot_path
+
+    def _plot_accuracy_metrics(self, accuracy_result: Any) -> str:
+        """Plot accuracy validation metrics."""
+        fig, axes = plt.subplots(2, 2, figsize=self.config.figure_size)
+        axes = axes.flatten()
+
+        if hasattr(accuracy_result, "rmse"):
+            axes[0].bar(["RMSE"], [accuracy_result.rmse], alpha=self.config.alpha, color="blue")
+            axes[0].set_ylabel("Error")
+            axes[0].set_title("Root Mean Square Error")
+            axes[0].grid(True, alpha=0.3, axis="y")
+
+        if hasattr(accuracy_result, "mae"):
+            axes[1].bar(["MAE"], [accuracy_result.mae], alpha=self.config.alpha, color="green")
+            axes[1].set_ylabel("Error")
+            axes[1].set_title("Mean Absolute Error")
+            axes[1].grid(True, alpha=0.3, axis="y")
+
+        if hasattr(accuracy_result, "r2_score"):
+            axes[2].bar(["R²"], [accuracy_result.r2_score], alpha=self.config.alpha, color="orange")
+            axes[2].set_ylabel("Score")
+            axes[2].set_title("R² Score")
+            axes[2].set_ylim([0, 1])
+            axes[2].grid(True, alpha=0.3, axis="y")
+
+        if hasattr(accuracy_result, "within_tolerance"):
+            status = "Valid" if accuracy_result.within_tolerance else "Invalid"
+            color = "green" if accuracy_result.within_tolerance else "red"
+            axes[3].bar(["Status"], [1], alpha=self.config.alpha, color=color)
+            axes[3].text(0, 0.5, status, ha="center", va="center", fontsize=14, fontweight="bold")
+            axes[3].set_title("Validation Status")
+            axes[3].set_ylim([0, 1])
+            axes[3].set_yticks([])
+
+        plt.suptitle("Accuracy Validation Metrics")
+        plt.tight_layout()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_path = f"{self.config.output_directory}/accuracy_metrics_{timestamp}.{self.config.save_format}"
+        plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
+        plt.close()
+
+        return plot_path
+
+    def _plot_statistical_results(self, stat_result: Any) -> str:
+        """Plot statistical validation results."""
+        fig, ax = plt.subplots(figsize=self.config.figure_size)
+
+        if hasattr(stat_result, "test_statistic") and hasattr(stat_result, "p_value"):
+            # Create visualization of test results
+            x = np.arange(2)
+            values = [stat_result.test_statistic, stat_result.p_value]
+            labels = ["Test Statistic", "P-value"]
+            colors = ["blue", "green" if stat_result.is_significant else "red"]
+
+            bars = ax.bar(labels, values, alpha=self.config.alpha, color=colors)
+
+            # Add significance level line for p-value
+            if hasattr(stat_result, "significance_level"):
+                ax.axhline(
+                    stat_result.significance_level, color="r", linestyle="--", label=f"α = {stat_result.significance_level}"
+                )
+
+            # Add value labels
+            for bar, val in zip(bars, values):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2.0, height, f"{val:.4f}", ha="center", va="bottom")
+
+            ax.set_ylabel("Value")
+            ax.set_title(f"Statistical Test: {stat_result.test_name}")
+            if hasattr(stat_result, "significance_level"):
+                ax.legend()
+            ax.grid(True, alpha=0.3, axis="y")
+
+        plt.tight_layout()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_path = f"{self.config.output_directory}/statistical_results_{timestamp}.{self.config.save_format}"
         plt.savefig(plot_path, dpi=self.config.dpi, bbox_inches="tight")
         plt.close()
 

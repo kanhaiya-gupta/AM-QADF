@@ -64,7 +64,9 @@ docs/AM_QADF/
   - [Processing](05-modules/processing.md) - Signal processing
   - [Fusion](05-modules/fusion.md) - Multi-source data fusion
   - [Quality](05-modules/quality.md) - Quality assessment
+  - [Validation](05-modules/validation.md) - Validation and benchmarking
   - [Analytics](05-modules/analytics.md) - Statistical and sensitivity analysis
+  - [SPC](05-modules/spc.md) - Statistical Process Control (control charts, capability, multivariate SPC)
   - [Anomaly Detection](05-modules/anomaly-detection.md) - Anomaly detection
   - [Visualization](05-modules/visualization.md) - 3D visualization
   - [Voxel Domain](05-modules/voxel-domain.md) - Main orchestrator

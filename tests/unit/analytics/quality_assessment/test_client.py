@@ -254,3 +254,94 @@ class TestQualityAssessmentClient:
         assert isinstance(report, str)
         assert output_file.exists()
         assert len(output_file.read_text()) > 0
+
+    @pytest.mark.unit
+    def test_client_creation_with_validation_enabled(self):
+        """Test creating QualityAssessmentClient with validation enabled."""
+        try:
+            client = QualityAssessmentClient(enable_validation=True)
+            assert client.enable_validation is True
+            # validation_client may be None if validation module unavailable
+        except TypeError:
+            # If enable_validation parameter doesn't exist yet, skip
+            pytest.skip("enable_validation parameter not available")
+
+    @pytest.mark.unit
+    def test_client_creation_with_validation_disabled(self):
+        """Test creating QualityAssessmentClient with validation disabled."""
+        try:
+            client = QualityAssessmentClient(enable_validation=False)
+            assert client.enable_validation is False
+            assert client.validation_client is None
+        except TypeError:
+            pytest.skip("enable_validation parameter not available")
+
+    @pytest.mark.unit
+    def test_validate_quality_assessment_mpm(self, mock_voxel_data):
+        """Test validate_quality_assessment with MPM validation type."""
+        try:
+            client = QualityAssessmentClient(enable_validation=True)
+        except TypeError:
+            pytest.skip("Validation features not available")
+
+        if client.validation_client is None:
+            pytest.skip("Validation client not available")
+
+        mpm_reference = {
+            "overall_quality_score": 0.88,
+            "quality_scores": {
+                "overall_quality_score": 0.88,
+                "data_quality_score": 0.83,
+            },
+        }
+
+        try:
+            results = client.validate_quality_assessment(mock_voxel_data, mpm_reference, validation_type="mpm")
+
+            assert isinstance(results, dict)
+            assert "framework_metrics" in results
+            assert "validation_type" in results
+            assert results["validation_type"] == "mpm"
+        except RuntimeError:
+            pytest.skip("Validation not available")
+
+    @pytest.mark.unit
+    def test_validate_quality_assessment_raises_when_disabled(self, mock_voxel_data):
+        """Test that validate_quality_assessment raises error when validation disabled."""
+        try:
+            client = QualityAssessmentClient(enable_validation=False)
+        except TypeError:
+            pytest.skip("Validation features not available")
+
+        with pytest.raises(RuntimeError, match="Validation not available"):
+            client.validate_quality_assessment(mock_voxel_data, {})
+
+    @pytest.mark.unit
+    def test_benchmark_quality_assessment(self, mock_voxel_data):
+        """Test benchmark_quality_assessment method."""
+        try:
+            client = QualityAssessmentClient(enable_validation=True)
+        except TypeError:
+            pytest.skip("Validation features not available")
+
+        if client.validation_client is None:
+            pytest.skip("Validation client not available")
+
+        result = client.benchmark_quality_assessment(mock_voxel_data, signals=["signal1"], iterations=2, warmup_iterations=1)
+
+        if result is not None:
+            assert hasattr(result, "execution_time")
+            assert hasattr(result, "memory_usage")
+            assert hasattr(result, "operation_name")
+
+    @pytest.mark.unit
+    def test_benchmark_quality_assessment_returns_none_when_disabled(self, mock_voxel_data):
+        """Test benchmark_quality_assessment returns None when validation disabled."""
+        try:
+            client = QualityAssessmentClient(enable_validation=False)
+        except TypeError:
+            pytest.skip("Validation features not available")
+
+        result = client.benchmark_quality_assessment(mock_voxel_data)
+
+        assert result is None

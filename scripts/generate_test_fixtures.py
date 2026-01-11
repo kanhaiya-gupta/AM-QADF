@@ -6,6 +6,7 @@ This script generates:
 - Voxel grid fixtures (small, medium, large)
 - Point cloud fixtures (hatching paths, laser points, CT points)
 - Signal fixtures (sample signals)
+- Validation fixtures (ground truth data, MPM comparison data, test datasets)
 
 Usage:
     python scripts/generate_test_fixtures.py
@@ -298,6 +299,123 @@ def generate_sample_signals():
 
 
 # ============================================================================
+# Validation Fixture Generation
+# ============================================================================
+
+def generate_ground_truth_fixtures():
+    """Generate ground truth fixtures for validation testing."""
+    print("Generating ground truth fixtures...")
+    np.random.seed(42)
+    
+    fixtures = {}
+    
+    # Ground truth signal (medium size)
+    print("  - Ground truth signal (50x50x10)...")
+    signal_3d = np.zeros((50, 50, 10))
+    z_coords = np.arange(10)[:, np.newaxis, np.newaxis]
+    y_coords = np.arange(50)[np.newaxis, :, np.newaxis]
+    x_coords = np.arange(50)[np.newaxis, np.newaxis, :]
+    signal_3d = 100 + 10 * np.sin(x_coords * 0.1) + 10 * np.cos(y_coords * 0.1) + 5 * np.sin(z_coords * 0.2)
+    fixtures['ground_truth_signal'] = signal_3d.astype(np.float32)
+    
+    # Ground truth coordinates (1000 points)
+    print("  - Ground truth coordinates (1000 points)...")
+    coords = np.random.rand(1000, 3) * 10.0
+    fixtures['ground_truth_coordinates'] = coords.astype(np.float32)
+    
+    # Ground truth quality metrics
+    print("  - Ground truth quality metrics...")
+    fixtures['ground_truth_quality_metrics'] = {
+        'overall_quality_score': 0.9,
+        'data_quality_score': 0.85,
+        'signal_quality_score': 0.92,
+        'alignment_score': 0.88,
+        'completeness_score': 0.95,
+        'completeness': 0.90,
+        'snr': 25.5,
+        'alignment_accuracy': 0.95,
+    }
+    
+    return fixtures
+
+
+def generate_mpm_comparison_fixtures():
+    """Generate MPM comparison fixtures for validation testing."""
+    print("Generating MPM comparison fixtures...")
+    np.random.seed(42)
+    
+    fixtures = {}
+    
+    # Framework quality metrics
+    framework_metrics = {
+        'completeness': 0.9,
+        'snr': 25.5,
+        'alignment_accuracy': 0.95,
+        'overall_quality_score': 0.9,
+    }
+    
+    # MPM metrics (slightly different, with known correlation ~0.9)
+    print("  - MPM quality metrics...")
+    fixtures['mpm_quality_metrics'] = {
+        'completeness': 0.88,
+        'snr': 24.8,
+        'alignment_accuracy': 0.94,
+        'overall_quality_score': 0.88,
+    }
+    
+    # Framework output array
+    print("  - Framework output array (100x100)...")
+    framework_array = np.random.rand(100, 100) * 100.0
+    fixtures['framework_array'] = framework_array.astype(np.float32)
+    
+    # MPM output array (correlated with framework)
+    print("  - MPM output array (100x100, correlated)...")
+    mpm_array = framework_array * 0.9 + np.random.rand(100, 100) * 10.0
+    fixtures['mpm_array'] = mpm_array.astype(np.float32)
+    
+    # Framework metrics dict
+    fixtures['framework_metrics'] = framework_metrics
+    
+    return fixtures
+
+
+def generate_validation_test_datasets():
+    """Generate validation test datasets (small, medium, large)."""
+    print("Generating validation test datasets...")
+    np.random.seed(42)
+    
+    datasets = {}
+    
+    sizes = {
+        'small': {'signal_shape': (20, 20, 5), 'n_points': 100},
+        'medium': {'signal_shape': (50, 50, 10), 'n_points': 1000},
+        'large': {'signal_shape': (100, 100, 20), 'n_points': 10000},
+    }
+    
+    for size_name, config in sizes.items():
+        print(f"  - {size_name.capitalize()} dataset ({config['signal_shape']}, {config['n_points']} points)...")
+        dataset = {
+            'framework_signal': (np.random.rand(*config['signal_shape']) * 100.0).astype(np.float32),
+            'ground_truth_signal': (np.random.rand(*config['signal_shape']) * 100.0).astype(np.float32),
+            'framework_coords': (np.random.rand(config['n_points'], 3) * 10.0).astype(np.float32),
+            'ground_truth_coords': (np.random.rand(config['n_points'], 3) * 10.0).astype(np.float32),
+            'framework_metrics': {
+                'completeness': 0.9,
+                'snr': 25.5,
+                'alignment_accuracy': 0.95,
+            },
+            'mpm_metrics': {
+                'completeness': 0.88,
+                'snr': 24.8,
+                'alignment_accuracy': 0.94,
+            },
+        }
+        datasets[size_name] = dataset
+    
+    return datasets
+
+
+# ============================================================================
 # Main Generation Function
 # ============================================================================
 
@@ -308,11 +426,13 @@ def main():
     voxel_dir = tests_dir / 'fixtures' / 'voxel_data'
     point_cloud_dir = tests_dir / 'fixtures' / 'point_clouds'
     signals_dir = tests_dir / 'fixtures' / 'signals'
+    validation_dir = tests_dir / 'fixtures' / 'validation'
     
     # Create directories
     voxel_dir.mkdir(parents=True, exist_ok=True)
     point_cloud_dir.mkdir(parents=True, exist_ok=True)
     signals_dir.mkdir(parents=True, exist_ok=True)
+    validation_dir.mkdir(parents=True, exist_ok=True)
     
     print("=" * 60)
     print("Generating Test Fixtures")
@@ -430,6 +550,47 @@ def main():
     print(f"   Points per signal: {len(signals['laser_power'])}")
     
     # ========================================================================
+    # Generate Validation Fixtures
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("Validation Fixtures")
+    print("=" * 60)
+    
+    # Ground truth fixtures
+    print("\n1. Ground Truth Fixtures")
+    ground_truth = generate_ground_truth_fixtures()
+    ground_truth_path = validation_dir / 'ground_truth_data.pkl'
+    with open(ground_truth_path, 'wb') as f:
+        pickle.dump(ground_truth, f)
+    print(f"   ✓ Saved to {ground_truth_path}")
+    print(f"   Keys: {list(ground_truth.keys())}")
+    print(f"   Signal shape: {ground_truth['ground_truth_signal'].shape}")
+    print(f"   Coordinates shape: {ground_truth['ground_truth_coordinates'].shape}")
+    
+    # MPM comparison fixtures
+    print("\n2. MPM Comparison Fixtures")
+    mpm_fixtures = generate_mpm_comparison_fixtures()
+    mpm_path = validation_dir / 'mpm_comparison_data.pkl'
+    with open(mpm_path, 'wb') as f:
+        pickle.dump(mpm_fixtures, f)
+    print(f"   ✓ Saved to {mpm_path}")
+    print(f"   Keys: {list(mpm_fixtures.keys())}")
+    print(f"   Framework array shape: {mpm_fixtures['framework_array'].shape}")
+    print(f"   MPM array shape: {mpm_fixtures['mpm_array'].shape}")
+    
+    # Validation test datasets
+    print("\n3. Validation Test Datasets")
+    validation_datasets = generate_validation_test_datasets()
+    datasets_path = validation_dir / 'validation_test_datasets.pkl'
+    with open(datasets_path, 'wb') as f:
+        pickle.dump(validation_datasets, f)
+    print(f"   ✓ Saved to {datasets_path}")
+    print(f"   Sizes: {list(validation_datasets.keys())}")
+    for size_name, dataset in validation_datasets.items():
+        print(f"   - {size_name}: signal {dataset['framework_signal'].shape}, "
+              f"coords {dataset['framework_coords'].shape}")
+    
+    # ========================================================================
     # Summary
     # ========================================================================
     print("\n" + "=" * 60)
@@ -439,6 +600,7 @@ def main():
     print(f"  - Voxel grids: {voxel_dir}")
     print(f"  - Point clouds: {point_cloud_dir}")
     print(f"  - Signals: {signals_dir}")
+    print(f"  - Validation: {validation_dir}")
 
 
 if __name__ == '__main__':

@@ -83,10 +83,7 @@ class RBFInterpolation(InterpolationMethod):
             "quintic",
         ]
         if kernel not in valid_kernels:
-            raise ValueError(
-                f"Invalid kernel '{kernel}'. "
-                f"Valid options: {valid_kernels}"
-            )
+            raise ValueError(f"Invalid kernel '{kernel}'. " f"Valid options: {valid_kernels}")
 
     def _estimate_epsilon(self, points: np.ndarray) -> float:
         """
@@ -142,9 +139,7 @@ class RBFInterpolation(InterpolationMethod):
             )
 
     @performance_monitor
-    def interpolate(
-        self, points: np.ndarray, signals: Dict[str, np.ndarray], voxel_grid: VoxelGrid
-    ) -> VoxelGrid:
+    def interpolate(self, points: np.ndarray, signals: Dict[str, np.ndarray], voxel_grid: VoxelGrid) -> VoxelGrid:
         """
         Vectorized RBF interpolation.
 
@@ -170,10 +165,7 @@ class RBFInterpolation(InterpolationMethod):
         try:
             from scipy.interpolate import RBFInterpolator
         except ImportError:
-            raise ImportError(
-                "scipy is required for RBF interpolation. "
-                "Install with: pip install scipy"
-            )
+            raise ImportError("scipy is required for RBF interpolation. " "Install with: pip install scipy")
 
         # Warn about large datasets
         n_points = len(points)
@@ -215,9 +207,7 @@ class RBFInterpolation(InterpolationMethod):
                 interpolated_values = rbf(voxel_centers)
 
                 # Store interpolated values in voxel data
-                for voxel_idx, (voxel_key, value) in enumerate(
-                    zip(unique_voxels, interpolated_values)
-                ):
+                for voxel_idx, (voxel_key, value) in enumerate(zip(unique_voxels, interpolated_values)):
                     voxel_key_tuple = tuple(voxel_key)
 
                     if voxel_key_tuple not in voxel_data:

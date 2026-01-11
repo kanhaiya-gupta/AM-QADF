@@ -52,13 +52,15 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgl1 libglib2.0-0
+        sudo apt-get install -y libgl1 libglib2.0-0 openjdk-11-jdk
     
     - name: Install Python dependencies
       run: |
         export NUMBA_DISABLE_JIT=1
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        # Ensure PySpark is available for Spark integration tests
+        pip install pyspark==3.4.1 || echo "PySpark installation failed, Spark tests will be skipped"
     
     - name: Run unit tests
       run: |
@@ -88,7 +90,8 @@ jobs:
     - name: Run utils tests
       run: |
         export NUMBA_DISABLE_JIT=1
-        pytest tests/utils -v --tb=short
+        # Utils tests don't test source code, so no coverage needed
+        pytest tests/utils -v --tb=short --no-cov
       continue-on-error: true
     
     - name: Run all tests with coverage
@@ -175,7 +178,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgl1 libglib2.0-0
+        sudo apt-get install -y libgl1 libglib2.0-0 openjdk-11-jdk
     
     - name: Install Python dependencies
       run: |

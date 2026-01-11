@@ -5,7 +5,7 @@
 
 ## Overview
 
-This directory contains detailed documentation for each of the 23 AM-QADF Interactive Notebooks. Each notebook has its own documentation page covering purpose, learning objectives, topics, widgets, and usage.
+This directory contains detailed documentation for each of the 28 AM-QADF Interactive Notebooks. Each notebook has its own documentation page covering purpose, learning objectives, topics, widgets, and usage.
 
 ## Notebook List
 
@@ -52,6 +52,10 @@ This directory contains detailed documentation for each of the 23 AM-QADF Intera
 - **[20: Performance Optimization](20-performance.md)** - Performance optimization
 - **[21: Custom Extensions](21-custom-extensions.md)** - Custom extensions
 - **[22: Troubleshooting and Debugging](22-troubleshooting.md)** - Troubleshooting
+- **[25: Statistical Process Control](25-statistical-process-control.md)** - Statistical Process Control workflows
+- **[26: Real-time Process Monitoring and Control](26-real-time-monitoring.md)** - Real-time monitoring and control
+- **[27: Process Optimization and Prediction](27-process-optimization-prediction.md)** - Process optimization and prediction with model tracking
+- **[28: Industrial Deployment and Validation](28-industrial-deployment-validation.md)** - Production deployment, industrial integration, scalability, fault tolerance, and troubleshooting
 
 ## Documentation Format
 
@@ -90,6 +94,12 @@ Each notebook documentation page includes:
 - 13-14: Anomaly Detection
 - 17: Complete Workflow
 - 19: Advanced Analytics
+- 25: Statistical Process Control
+- 26: Real-time Process Monitoring and Control
+- 27: Process Optimization and Prediction
+
+**Very Long (120-150 minutes)**:
+- 28: Industrial Deployment and Validation
 
 ### By Topic
 
@@ -104,7 +114,10 @@ Each notebook documentation page includes:
 **Workflows**: 17  
 **Performance**: 20  
 **Extensions**: 21  
-**Troubleshooting**: 22
+**Troubleshooting**: 22  
+**SPC**: 25  
+**Real-time Monitoring**: 26  
+**Process Optimization**: 27
 
 ## Related Documentation
 

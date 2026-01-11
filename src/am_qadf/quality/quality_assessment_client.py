@@ -10,6 +10,9 @@ from typing import Dict, List, Optional, Tuple, Any
 import sys
 import importlib.util
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Import quality assessment components with fallback for direct loading
 try:
@@ -71,18 +74,33 @@ class QualityAssessmentClient:
     - Completeness checks and gap filling
     """
 
-    def __init__(self, max_acceptable_error: float = 0.1, noise_floor: float = 1e-6):
+    def __init__(self, max_acceptable_error: float = 0.1, noise_floor: float = 1e-6, enable_validation: bool = True):
         """
         Initialize the quality assessment client.
 
         Args:
             max_acceptable_error: Maximum acceptable alignment error (mm)
             noise_floor: Minimum noise level for SNR calculation
+            enable_validation: Whether to enable validation capabilities
         """
         self.data_quality_analyzer = DataQualityAnalyzer()
         self.signal_quality_analyzer = SignalQualityAnalyzer(noise_floor=noise_floor)
         self.alignment_analyzer = AlignmentAccuracyAnalyzer(max_acceptable_error=max_acceptable_error)
         self.completeness_analyzer = CompletenessAnalyzer()
+
+        # Initialize validation client if enabled
+        self.enable_validation = enable_validation
+        self.validation_client = None
+        if enable_validation:
+            try:
+                from ..validation import ValidationClient, ValidationConfig
+
+                validation_config = ValidationConfig(max_acceptable_error=max_acceptable_error, correlation_threshold=0.85)
+                self.validation_client = ValidationClient(config=validation_config)
+                logger.info("Validation client initialized")
+            except ImportError as e:
+                logger.warning(f"Validation module not available: {e}. Validation features disabled.")
+                self.enable_validation = False
 
     def assess_data_quality(
         self,
@@ -378,3 +396,141 @@ class QualityAssessmentClient:
             print(f"✅ Report saved to: {output_file}")
 
         return report
+
+    def validate_quality_assessment(
+        self,
+        voxel_data: Any,
+        reference_data: Any,
+        validation_type: str = "mpm",
+        signals: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Validate quality assessment against reference data (MPM or ground truth).
+
+        Args:
+            voxel_data: Voxel domain data with quality assessment results
+            reference_data: Reference data for validation (MPM system outputs or ground truth)
+            validation_type: Type of validation ('mpm', 'accuracy', 'statistical', or 'comprehensive')
+            signals: List of signal names to validate (None = all signals)
+
+        Returns:
+            Dictionary containing validation results
+
+        Raises:
+            RuntimeError: If validation is not enabled or validation client not available
+        """
+        if not self.enable_validation or self.validation_client is None:
+            raise RuntimeError(
+                "Validation not available. Initialize QualityAssessmentClient with enable_validation=True "
+                "and ensure validation module is installed."
+            )
+
+        # Perform quality assessment
+        assessment_results = self.comprehensive_assessment(voxel_data, signals=signals)
+
+        # Extract metrics for comparison
+        framework_metrics = {
+            "overall_quality_score": assessment_results["summary"]["overall_quality_score"],
+            "data_quality_score": assessment_results["summary"]["data_quality_score"],
+            "signal_quality_score": assessment_results["summary"]["signal_quality_score"],
+            "alignment_score": assessment_results["summary"]["alignment_score"],
+            "completeness_score": assessment_results["summary"]["completeness_score"],
+        }
+
+        # Add signal-specific metrics if available
+        if signals is None and hasattr(voxel_data, "available_signals"):
+            signals = list(voxel_data.available_signals)
+
+        if signals and "signal_quality" in assessment_results:
+            for signal_name in signals:
+                if signal_name in assessment_results["signal_quality"]:
+                    sq = assessment_results["signal_quality"][signal_name]
+                    framework_metrics[f"{signal_name}_snr"] = sq.snr_mean
+                    framework_metrics[f"{signal_name}_quality_score"] = sq.quality_score
+
+        # Perform validation based on type
+        validation_results = {}
+
+        if validation_type in ["mpm", "comprehensive"]:
+            # MPM comparison
+            try:
+                mpm_results = self.validation_client.compare_with_mpm(
+                    framework_metrics,
+                    reference_data if isinstance(reference_data, dict) else {"reference": reference_data},
+                    metrics=list(framework_metrics.keys()) if isinstance(reference_data, dict) else None,
+                )
+                validation_results["mpm_comparison"] = mpm_results
+                logger.info(f"MPM comparison completed: {len(mpm_results)} metrics compared")
+            except Exception as e:
+                logger.error(f"MPM comparison failed: {e}")
+                validation_results["mpm_comparison"] = {"error": str(e)}
+
+        if validation_type in ["accuracy", "comprehensive"]:
+            # Accuracy validation
+            try:
+                # Convert assessment results to arrays for accuracy validation
+                if isinstance(reference_data, dict) and "quality_scores" in reference_data:
+                    # Assume reference_data contains corresponding quality scores
+                    accuracy_result = self.validation_client.validate_accuracy(
+                        np.array(list(framework_metrics.values())),
+                        np.array(list(reference_data["quality_scores"].values())),
+                        validation_type="quality",
+                    )
+                    validation_results["accuracy"] = accuracy_result
+                    logger.info("Accuracy validation completed")
+            except Exception as e:
+                logger.error(f"Accuracy validation failed: {e}")
+                validation_results["accuracy"] = {"error": str(e)}
+
+        if validation_type in ["statistical", "comprehensive"]:
+            # Statistical validation
+            try:
+                if isinstance(reference_data, dict) and "quality_scores" in reference_data:
+                    framework_array = np.array(list(framework_metrics.values()))
+                    reference_array = np.array(list(reference_data["quality_scores"].values()))
+                    stat_result = self.validation_client.perform_statistical_test(
+                        "t_test", framework_array, reference_array, alternative="two-sided"
+                    )
+                    validation_results["statistical"] = stat_result
+                    logger.info("Statistical validation completed")
+            except Exception as e:
+                logger.error(f"Statistical validation failed: {e}")
+                validation_results["statistical"] = {"error": str(e)}
+
+        return {
+            "framework_metrics": framework_metrics,
+            "validation_type": validation_type,
+            "validation_results": validation_results,
+            "assessment_results": assessment_results,
+        }
+
+    def benchmark_quality_assessment(
+        self,
+        voxel_data: Any,
+        signals: Optional[List[str]] = None,
+        iterations: int = 1,
+        warmup_iterations: int = 0,
+    ) -> Optional[Any]:
+        """
+        Benchmark quality assessment performance.
+
+        Args:
+            voxel_data: Voxel domain data to assess
+            signals: List of signal names to check (None = all signals)
+            iterations: Number of iterations to run for benchmarking
+            warmup_iterations: Number of warmup iterations (excluded from timing)
+
+        Returns:
+            BenchmarkResult if validation is enabled, None otherwise
+        """
+        if not self.enable_validation or self.validation_client is None:
+            logger.warning("Benchmarking not available. Validation client not initialized.")
+            return None
+
+        return self.validation_client.benchmark_operation(
+            self.comprehensive_assessment,
+            voxel_data,
+            signals=signals,
+            iterations=iterations,
+            warmup_iterations=warmup_iterations,
+        )

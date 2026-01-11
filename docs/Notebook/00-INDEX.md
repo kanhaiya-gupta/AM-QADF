@@ -145,7 +145,7 @@ This document provides a complete index of all documentation in the AM-QADF Inte
   - Batch processing
   - Duration: 60-90 minutes
 
-### Category 7: Advanced Topics (19-22)
+### Category 7: Advanced Topics (19-28)
 - **[19: Advanced Analytics Workflow](04-notebooks/19-advanced-analytics.md)**
   - Advanced workflows
   - Combined analyses
@@ -169,6 +169,64 @@ This document provides a complete index of all documentation in the AM-QADF Inte
   - Debugging techniques
   - Data validation
   - Duration: 45-60 minutes
+
+- **[23: Data Generation Workbench](04-notebooks/23-data-generation.md)** (if exists)
+  - Data generation
+  - Simulation
+  - Synthetic data
+  - Duration: 60-90 minutes
+
+- **[24: Validation and Benchmarking](04-notebooks/24-validation-and-benchmarking.md)** (if exists)
+  - Validation methods
+  - Benchmarking
+  - Performance evaluation
+  - Duration: 90-120 minutes
+
+- **[25: Statistical Process Control](04-notebooks/25-statistical-process-control.md)**
+  - Control charts (X-bar, R, S, Individual, Moving Range)
+  - Process capability analysis (Cp, Cpk, Pp, Ppk)
+  - Multivariate SPC (Hotelling T², PCA-based)
+  - Control rule detection (Western Electric, Nelson rules)
+  - Baseline calculation and adaptive limits
+  - Real-time progress tracking and detailed logging
+  - Duration: 90-120 minutes
+
+- **[26: Real-time Process Monitoring and Control](04-notebooks/26-real-time-monitoring.md)**
+  - Kafka-based streaming data processing
+  - Live quality dashboards with WebSocket updates
+  - Alert configuration and notification channels
+  - Real-time SPC integration
+  - System and process health monitoring
+  - Real-time progress tracking and detailed logging
+  - Duration: 90-120 minutes
+
+- **[27: Process Optimization and Prediction](04-notebooks/27-process-optimization-prediction.md)**
+  - Predictive quality models (Random Forest, Gradient Boosting, MLP)
+  - Early defect detection before build completion
+  - Time-series forecasting (ARIMA, Exponential Smoothing, Prophet)
+  - Single and multi-objective optimization (Pareto fronts)
+  - Constrained optimization (penalty, barrier, augmented Lagrangian)
+  - Optimization validation (cross-validation, experimental, simulation)
+  - Model registry and performance tracking
+  - Drift detection and retraining triggers
+  - Real-time progress tracking and detailed logging
+  - Duration: 90-120 minutes
+
+- **[28: Industrial Deployment and Validation](04-notebooks/28-industrial-deployment-validation.md)**
+  - Production configuration management (environment-based, secrets, validation)
+  - Scalability setup (load balancing, auto-scaling, horizontal/vertical scaling)
+  - Fault tolerance (retry policies, circuit breakers, graceful degradation)
+  - Resource monitoring (CPU, memory, disk, network, process tracking)
+  - Performance tuning (profiling, optimization, recommendations)
+  - MPM system integration (process data, quality results, parameter sync)
+  - Manufacturing equipment integration (3D printers, sensors, PLCs)
+  - REST API gateway setup (endpoints, versioning, middleware, CORS)
+  - Authentication and authorization (JWT, OAuth2, RBAC, token management)
+  - Monitoring and observability (OpenTelemetry, distributed tracing, Prometheus metrics)
+  - Production deployment (Docker, Kubernetes, CI/CD pipelines)
+  - Troubleshooting production issues (diagnostics, debugging, resolution)
+  - Real-time progress tracking and detailed logging
+  - Duration: 120-150 minutes
 
 ---
 
@@ -197,8 +255,8 @@ This document provides a complete index of all documentation in the AM-QADF Inte
 
 ## 📊 Documentation Statistics
 
-- **Total Notebooks**: 23
-- **Total Documentation Pages**: 30+
+- **Total Notebooks**: 28
+- **Total Documentation Pages**: 37+
 - **Categories**: 7
 - **Widget Documentation**: 4 pages
 - **Examples**: Multiple workflows
@@ -236,6 +294,7 @@ This document provides a complete index of all documentation in the AM-QADF Inte
 4. 20: Performance Optimization
 5. 21: Custom Extensions
 6. 22: Troubleshooting and Debugging
+7. 25: Statistical Process Control
 
 ---
 

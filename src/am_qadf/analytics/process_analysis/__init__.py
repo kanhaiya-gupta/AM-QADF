@@ -3,6 +3,7 @@ AM-QADF Process Analysis Module
 
 Process analysis for voxel domain data.
 Handles parameter analysis, quality analysis, sensor analysis, and process optimization.
+Includes prediction capabilities, model tracking, and enhanced optimization features.
 """
 
 from .parameter_analysis import (
@@ -32,6 +33,29 @@ from .optimization import (
     OptimizationResult,
     ProcessOptimizer,
     MultiObjectiveOptimizer,
+    ConstraintHandler,
+    ParetoVisualizer,
+)
+
+# Prediction module
+from .prediction import (
+    PredictionConfig,
+    EarlyDefectPredictionResult,
+    EarlyDefectPredictor,
+    TimeSeriesPredictionResult,
+    TimeSeriesPredictor,
+    OptimizationValidationResult,
+    PredictionValidator,
+)
+
+# Model tracking module
+from .model_tracking import (
+    ModelVersion,
+    ModelRegistry,
+    ModelPerformanceMetrics,
+    ModelPerformanceTracker,
+    MonitoringConfig,
+    ModelMonitor,
 )
 
 __all__ = [
@@ -56,4 +80,21 @@ __all__ = [
     "OptimizationResult",
     "ProcessOptimizer",
     "MultiObjectiveOptimizer",
+    "ConstraintHandler",
+    "ParetoVisualizer",
+    # Prediction
+    "PredictionConfig",
+    "EarlyDefectPredictionResult",
+    "EarlyDefectPredictor",
+    "TimeSeriesPredictionResult",
+    "TimeSeriesPredictor",
+    "OptimizationValidationResult",
+    "PredictionValidator",
+    # Model tracking
+    "ModelVersion",
+    "ModelRegistry",
+    "ModelPerformanceMetrics",
+    "ModelPerformanceTracker",
+    "MonitoringConfig",
+    "ModelMonitor",
 ]

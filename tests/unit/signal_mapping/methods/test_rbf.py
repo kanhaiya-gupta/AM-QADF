@@ -197,7 +197,9 @@ class TestRBFInterpolation:
         kernels = ["gaussian", "multiquadric", "thin_plate_spline", "linear"]
 
         for kernel in kernels:
-            method = RBFInterpolation(kernel=kernel, epsilon=1.0, smoothing=0.01)  # Add small smoothing to avoid singular matrix
+            method = RBFInterpolation(
+                kernel=kernel, epsilon=1.0, smoothing=0.01
+            )  # Add small smoothing to avoid singular matrix
             result = method.interpolate(points, signals, self._create_voxel_grid_copy(voxel_grid))
             assert result is not None
             # The method handles errors gracefully by logging them

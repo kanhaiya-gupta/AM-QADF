@@ -25,9 +25,7 @@ def create_test_data(n_points, bbox_size=10.0, seed=42):
     """Create test data for performance testing."""
     np.random.seed(seed)
     points = np.random.rand(n_points, 3) * bbox_size
-    signals = {
-        "power": 100.0 + 50.0 * np.sin(points[:, 0] / 2.0) + np.random.randn(n_points) * 2.0
-    }
+    signals = {"power": 100.0 + 50.0 * np.sin(points[:, 0] / 2.0) + np.random.randn(n_points) * 2.0}
     return points, signals
 
 

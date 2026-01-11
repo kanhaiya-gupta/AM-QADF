@@ -17,6 +17,7 @@ import uuid
 import io
 import gzip
 import time
+import importlib.util
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent

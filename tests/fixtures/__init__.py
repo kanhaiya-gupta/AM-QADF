@@ -44,6 +44,43 @@ def large_voxel_grid():
     return load_large_voxel_grid()
 
 
+# Import streaming and monitoring fixtures
+try:
+    from .streaming import (
+        generate_kafka_message,
+        generate_kafka_message_batch,
+        generate_streaming_data_point,
+        generate_streaming_batch,
+        generate_streaming_data_with_anomalies,
+        generate_time_series_stream,
+    )
+
+    STREAMING_FIXTURES_AVAILABLE = True
+except ImportError:
+    STREAMING_FIXTURES_AVAILABLE = False
+    generate_kafka_message = None
+    generate_kafka_message_batch = None
+    generate_streaming_data_point = None
+    generate_streaming_batch = None
+
+try:
+    from .monitoring import (
+        generate_alert,
+        generate_alert_batch,
+        generate_alert_history,
+        generate_health_status,
+        generate_health_history,
+        generate_health_metrics,
+    )
+
+    MONITORING_FIXTURES_AVAILABLE = True
+except ImportError:
+    MONITORING_FIXTURES_AVAILABLE = False
+    generate_alert = None
+    generate_alert_batch = None
+    generate_health_status = None
+
+
 # Export commonly used fixtures
 __all__ = [
     "small_voxel_grid",
@@ -53,3 +90,24 @@ __all__ = [
     "load_medium_voxel_grid",
     "load_large_voxel_grid",
 ]
+
+# Add streaming fixtures if available
+if STREAMING_FIXTURES_AVAILABLE:
+    __all__.extend(
+        [
+            "generate_kafka_message",
+            "generate_kafka_message_batch",
+            "generate_streaming_data_point",
+            "generate_streaming_batch",
+        ]
+    )
+
+# Add monitoring fixtures if available
+if MONITORING_FIXTURES_AVAILABLE:
+    __all__.extend(
+        [
+            "generate_alert",
+            "generate_alert_batch",
+            "generate_health_status",
+        ]
+    )
