@@ -3,6 +3,9 @@ Data Fusion
 
 Combine multiple signal sources into unified representation.
 Handles conflicting data and weighted averaging strategies.
+
+Note: This module was moved from synchronization to fusion as it deals with
+signal combination (fusion), not temporal/spatial alignment (synchronization).
 """
 
 from typing import Optional, Dict, List, Tuple, Any, Callable
@@ -305,3 +308,6 @@ class DataFusion:
         metrics["std"] = float(np.nanstd(fused))
 
         return metrics
+
+
+__all__ = ['FusionStrategy', 'DataFusion']

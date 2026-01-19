@@ -6,17 +6,19 @@
 
 ## Purpose
 
-This notebook teaches you how to fuse multi-source data using various fusion strategies. You'll learn weighted average, median, quality-based, and other fusion methods with interactive comparison.
+This notebook teaches you how to fuse multi-source data using comprehensive fusion strategies. You'll learn to create fused grids that preserve all original signals, create source-specific fused signals, and generate multi-source fused signals for matching signal types. The notebook uses the `MultiSourceFusion` module which follows industry best practices for multi-modal data fusion.
 
 ## Learning Objectives
 
 By the end of this notebook, you will:
 
-- ✅ Understand fusion strategies and when to use them
-- ✅ Fuse multiple signal sources
-- ✅ Configure fusion parameters
-- ✅ Assess fusion quality
-- ✅ Compare fusion results
+- ✅ Understand comprehensive fusion structure and signal preservation
+- ✅ Fuse multiple signal sources with complete data preservation
+- ✅ Create source-specific and multi-source fused signals
+- ✅ Configure fusion parameters and weights
+- ✅ Assess fusion quality with comprehensive metrics
+- ✅ Understand fused grid structure (29 signals: 13 original + 13 source-specific + 3 multi-source)
+- ✅ Access complete metadata for traceability
 
 ## Topics Covered
 
@@ -30,11 +32,15 @@ By the end of this notebook, you will:
 
 ### Fusion Process
 
-- **Source Selection**: Select signals to fuse
+- **Source Selection**: Select source grids to fuse
+- **Signal Collection**: Collect all signals from each source
+- **Signal Preservation**: Preserve all original signals (source-prefixed)
+- **Source-Specific Fusion**: Create fused versions of each signal (with `_fused` suffix)
+- **Multi-Source Fusion**: Fuse matching signal types across sources
 - **Strategy Configuration**: Configure fusion strategy
 - **Weight Assignment**: Set source weights
 - **Quality Integration**: Use quality scores
-- **Result Generation**: Generate fused signal
+- **Result Generation**: Generate comprehensive fused grid with 29 signals + metadata
 
 ### Quality Assessment
 
@@ -106,9 +112,10 @@ By the end of this notebook, you will:
 ### Step 4: Compare and Validate
 
 1. View fused result visualization
-2. Compare with source signals
-3. Check fusion quality metrics
-4. Export fused data
+2. Compare original, source-specific fused, and multi-source fused signals
+3. Check comprehensive fusion quality metrics
+4. Review signal statistics and metadata
+5. Export complete fused grid with all signals
 
 ## Example Workflow
 
@@ -121,11 +128,25 @@ By the end of this notebook, you will:
 
 ## Key Takeaways
 
-1. **Strategy Selection**: Choose strategy based on use case
-2. **Quality Integration**: Use quality scores for better fusion
-3. **Weight Configuration**: Adjust weights for optimal results
-4. **Quality Assessment**: Always assess fusion quality
-5. **Comparison**: Compare strategies to find best fit
+1. **Comprehensive Fusion**: All signals are preserved - nothing is lost
+2. **Signal Structure**: Understand the three categories of signals (original, source-specific fused, multi-source fused)
+3. **Strategy Selection**: Choose strategy based on use case
+4. **Quality Integration**: Use quality scores for better fusion
+5. **Weight Configuration**: Adjust weights for optimal results
+6. **Quality Assessment**: Always assess fusion quality with comprehensive metrics
+7. **Metadata Access**: Use complete metadata for traceability and analysis
+8. **Future-Proof Design**: New sources can be added without breaking existing code
+
+## Fused Grid Structure
+
+The notebook creates a comprehensive fused grid with:
+
+- **13 Original Signals**: Source-prefixed signals preserved as-is
+- **13 Source-Specific Fused Signals**: All signals with `_fused` suffix
+- **3 Multi-Source Fused Signals**: Fused from matching signal types
+- **Complete Metadata**: Full traceability, statistics, and provenance
+
+**Total: 29 signals** with comprehensive metadata for complete data preservation and analysis.
 
 ## Related Notebooks
 

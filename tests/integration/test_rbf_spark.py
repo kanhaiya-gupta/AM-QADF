@@ -9,6 +9,9 @@ import numpy as np
 from am_qadf.voxelization.voxel_grid import VoxelGrid
 from am_qadf.signal_mapping.execution.sequential import interpolate_to_voxels
 
+# Timeout for Spark tests (10 minutes max per test)
+pytestmark = pytest.mark.timeout(600)
+
 
 @pytest.fixture(scope="module")
 def spark_session():

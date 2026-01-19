@@ -519,24 +519,50 @@ class VoxelGridStorage:
         try:
             data = np.load(buffer, allow_pickle=True)
 
-            # Check if it's sparse format
-            if "format" in data and data["format"] == "sparse":
+            # Check if it's sparse format (npz file with 'format' key)
+            is_sparse = False
+            if isinstance(data, np.lib.npyio.NpzFile):
+                # For npz files, check if 'format' is in the files list
+                if "format" in data.files:
+                    format_value = data["format"]
+                    if isinstance(format_value, np.ndarray):
+                        format_value = format_value.item() if format_value.size == 1 else str(format_value)
+                    is_sparse = (format_value == "sparse" or format_value == b"sparse")
+            elif isinstance(data, dict):
+                # For dict-like objects
+                is_sparse = data.get("format") == "sparse"
+            
+            if is_sparse:
                 # Reconstruct dense array from sparse representation
                 indices = data["indices"]
                 values = data["values"]
                 dims = tuple(data["dims"])
-                default = float(data["default"]) if "default" in data else 0.0
+                default = float(data["default"].item() if hasattr(data["default"], "item") else data["default"]) if "default" in (data.files if isinstance(data, np.lib.npyio.NpzFile) else data) else 0.0
 
                 # Create dense array
                 signal_array = np.full(dims, default, dtype=values.dtype)
-                signal_array[indices[:, 0], indices[:, 1], indices[:, 2]] = values
+                if len(indices) > 0:
+                    signal_array[indices[:, 0], indices[:, 1], indices[:, 2]] = values
 
                 return signal_array
             else:
-                # Dense format (legacy)
-                buffer.seek(0)  # Reset buffer
-                signal_array = np.load(buffer)
-                return signal_array
+                # Dense format - handle both npz and npy
+                if isinstance(data, np.lib.npyio.NpzFile):
+                    # Get first array from npz file
+                    if len(data.files) > 0:
+                        first_key = data.files[0]
+                        signal_array = data[first_key]
+                        return signal_array
+                    else:
+                        raise ValueError("Empty npz file")
+                elif isinstance(data, np.ndarray):
+                    # Direct numpy array
+                    return data
+                else:
+                    # Fallback: try to reload
+                    buffer.seek(0)
+                    signal_array = np.load(buffer)
+                    return signal_array
         except Exception as e:
             # Fallback: try as regular numpy file
             buffer.seek(0)

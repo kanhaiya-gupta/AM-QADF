@@ -72,7 +72,8 @@ jobs:
     - name: Run integration tests
       run: |
         export NUMBA_DISABLE_JIT=1
-        pytest tests/integration -m "integration" -v --tb=short
+        # Use parallel execution for faster tests (2 workers for GitHub Actions limited resources)
+        pytest tests/integration -m "integration" -v --tb=short -n 2
       continue-on-error: true
     
     - name: Run e2e tests
@@ -97,7 +98,9 @@ jobs:
     - name: Run all tests with coverage
       run: |
         export NUMBA_DISABLE_JIT=1
-        pytest tests/ --cov=src/am_qadf --cov-report=xml --cov-report=term-missing --cov-report=html -v --cov-fail-under=15
+        # Run all tests with coverage in parallel (2 workers for GitHub Actions)
+        # Note: Coverage collection works with xdist but may be slightly less accurate
+        pytest tests/ --cov=src/am_qadf --cov-report=xml --cov-report=term-missing --cov-report=html -v --cov-fail-under=15 -n 2
       continue-on-error: true
     
     - name: Upload coverage reports

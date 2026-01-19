@@ -2,7 +2,10 @@
 AM-QADF Synchronization Module
 
 Temporal and spatial alignment of multi-source data.
-Handles time-to-layer mapping, coordinate transformations, and data fusion preparation.
+Handles time-to-layer mapping, coordinate transformations, and alignment storage.
+
+Note: DataFusion has been moved to the fusion module as it deals with
+signal combination (fusion), not temporal/spatial alignment (synchronization).
 """
 
 from .temporal_alignment import (
@@ -15,11 +18,6 @@ from .spatial_transformation import (
     TransformationMatrix,
     SpatialTransformer,
     TransformationManager,
-)
-
-from .data_fusion import (
-    FusionStrategy,
-    DataFusion,
 )
 
 from .alignment_storage import (
@@ -35,9 +33,6 @@ __all__ = [
     "TransformationMatrix",
     "SpatialTransformer",
     "TransformationManager",
-    # Data fusion
-    "FusionStrategy",
-    "DataFusion",
     # Storage
     "AlignmentStorage",
 ]

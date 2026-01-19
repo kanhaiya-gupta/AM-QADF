@@ -59,8 +59,16 @@ class AdaptiveResolutionGrid:
             spatial_resolution_map: Spatial resolution mapping
             temporal_resolution_map: Temporal resolution mapping
         """
+        # Validate inputs
+        if base_resolution <= 0:
+            raise ValueError("Base resolution must be greater than 0")
+        
         self.bbox_min = np.array(bbox_min)
         self.bbox_max = np.array(bbox_max)
+        
+        if np.any(self.bbox_max <= self.bbox_min):
+            raise ValueError("bbox_max must be greater than bbox_min in all dimensions")
+        
         self.base_resolution = base_resolution
         self.aggregation = "mean"  # Default aggregation method, matching VoxelGrid
 
@@ -433,16 +441,36 @@ class AdaptiveResolutionGrid:
             "resolutions": [],
             "total_points": len(self.points),
             "available_signals": set(),
+            "total_voxels": 0,
+            "filled_voxels": 0,
+            "dimensions": None,  # Will be set from base resolution estimate
         }
+
+        # Calculate total voxels and dimensions from all region grids
+        total_voxels = 0
+        filled_voxels = 0
+        max_dims = np.array([0, 0, 0], dtype=int)
 
         for key, grid in self.region_grids.items():
             resolution = float(key.split("_")[1])
             grid_stats = grid.get_statistics()
 
+            # Accumulate voxel counts
+            total_voxels += grid_stats.get("total_voxels", 0)
+            filled_voxels += grid_stats.get("filled_voxels", 0)
+            
+            # Track maximum dimensions (finest resolution)
+            grid_dims = grid_stats.get("dimensions")
+            if grid_dims:
+                grid_dims_array = np.array(grid_dims)
+                max_dims = np.maximum(max_dims, grid_dims_array)
+
             stats["resolutions"].append(
                 {
                     "resolution": resolution,
+                    "total_voxels": grid_stats.get("total_voxels", 0),
                     "filled_voxels": grid_stats.get("filled_voxels", 0),
+                    "dimensions": grid_stats.get("dimensions"),
                     "signals": grid_stats.get("available_signals", set()),
                 }
             )
@@ -450,6 +478,9 @@ class AdaptiveResolutionGrid:
             stats["available_signals"].update(grid_stats.get("available_signals", set()))
 
         stats["available_signals"] = list(stats["available_signals"])
+        stats["total_voxels"] = int(total_voxels)
+        stats["filled_voxels"] = int(filled_voxels)
+        stats["dimensions"] = tuple(max_dims.tolist()) if np.any(max_dims > 0) else None
 
         return stats
 

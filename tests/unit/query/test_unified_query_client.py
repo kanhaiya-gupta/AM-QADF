@@ -112,8 +112,6 @@ class TestUnifiedQueryClient:
         client.hatching_client.query = Mock(side_effect=Exception("Query error"))
 
         # query_all_sources catches errors and puts them in results dict
-        results = client.query_all_sources(model_id="test_model")
-
-        # Should have error in hatching results
+        results = client.query_all_sources(model_id="test_model")        # Should have error in hatching results
         assert "hatching" in results
         assert "error" in results["hatching"]

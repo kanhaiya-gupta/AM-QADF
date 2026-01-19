@@ -11,19 +11,14 @@ import sys
 import importlib.util
 from pathlib import Path
 
-# Import base DataFusion from synchronization module
+# Import base DataFusion from fusion module (moved from synchronization)
 try:
     # Try relative import first
-    from ..synchronization.data_fusion import DataFusion, FusionStrategy
+    from .data_fusion import DataFusion, FusionStrategy
 except ImportError:
-    # Fallback: direct import
+    # Fallback: should not be needed if module structure is correct
     try:
-        fusion_path = Path(__file__).parent.parent.parent / "synchronization" / "data_fusion.py"
-        spec = importlib.util.spec_from_file_location("data_fusion", fusion_path)
-        fusion_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(fusion_module)
-        DataFusion = fusion_module.DataFusion
-        FusionStrategy = fusion_module.FusionStrategy
+        from ..fusion.data_fusion import DataFusion, FusionStrategy
     except Exception:
         # Define minimal fallback
         from enum import Enum

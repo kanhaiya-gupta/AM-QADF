@@ -119,6 +119,48 @@ Transforms points between coordinate systems:
 - **CT Scan**: CT scan coordinate system
 - **ISPM Sensor**: Sensor coordinate system
 
+## Grid Coordinates and Spatial Reference Frame
+
+### When Coordinates Are Set
+
+**Coordinates are set during grid creation** - they are required parameters when initializing a `VoxelGrid` and cannot be changed afterward.
+
+```python
+grid = VoxelGrid(
+    bbox_min=(0, 0, 0),      # ← Coordinates set HERE during creation
+    bbox_max=(100, 100, 100), # ← Coordinates set HERE during creation
+    resolution=1.0
+)
+```
+
+### What Coordinates Define
+
+The bounding box parameters (`bbox_min`, `bbox_max`) define:
+
+1. **Spatial Extent**: The physical region in 3D space where the grid exists (world coordinates in mm)
+2. **Grid Origin**: `bbox_min` serves as the origin (0, 0, 0) of the voxel grid coordinate system
+3. **Voxel-to-World Mapping**: How voxel indices `(i, j, k)` map to world coordinates `(x, y, z)`
+
+### Coordinate System Mapping
+
+The grid uses a simple mapping between voxel indices and world coordinates:
+
+- **World-to-Voxel**: `voxel_index = floor((world_coord - bbox_min) / resolution)`
+- **Voxel-to-World**: `world_coord = bbox_min + (voxel_index + 0.5) * resolution`
+
+Each voxel at index `(i, j, k)` has a world coordinate center at:
+```
+x = bbox_min[0] + (i + 0.5) * resolution
+y = bbox_min[1] + (j + 0.5) * resolution
+z = bbox_min[2] + (k + 0.5) * resolution
+```
+
+### Important Characteristics
+
+- **Immutable**: Coordinates cannot be changed after grid creation
+- **Spatial Reference Frame**: All data mapped to the grid must use the same coordinate system
+- **Coordinate System Alignment**: Data must be aligned (see Synchronization Module) before mapping signals to ensure all sources use the same spatial reference frame
+
 ## Voxel Grid Creation Workflow
 
 ```mermaid

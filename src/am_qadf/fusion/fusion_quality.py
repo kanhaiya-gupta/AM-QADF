@@ -178,7 +178,8 @@ class FusionQualityAssessor:
         Returns:
             Dictionary mapping strategy names to FusionQualityMetrics
         """
-        from .voxel_fusion import VoxelFusion, FusionStrategy
+        from .voxel_fusion import VoxelFusion
+        from .data_fusion import FusionStrategy
 
         results = {}
 

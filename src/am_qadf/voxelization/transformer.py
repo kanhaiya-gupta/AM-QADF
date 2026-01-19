@@ -92,32 +92,32 @@ class CoordinateSystemTransformer:
             )
 
         # Step 1: Convert from from_system's local coordinates to "normalized" coordinates
-        # Apply inverse scaling (divide by from_scale)
+        # Apply A's inverse transform in reverse order: T⁻¹ → R⁻¹ → S⁻¹
+        # Apply inverse translation (subtract from_origin) - FIRST
+        p = p - from_origin
+
+        # Apply inverse rotation - SECOND
+        if from_rotation:
+            rotation_matrix = self._get_rotation_matrix(from_rotation)
+            rotation_matrix_inv = rotation_matrix.T  # For rotation matrices, inverse = transpose
+            p = rotation_matrix_inv @ p
+
+        # Apply inverse scaling (divide by from_scale) - LAST
         from_scale_array = np.where(from_scale_array != 0, from_scale_array, 1.0)
         p = p / from_scale_array
 
-        # Apply rotation (forward, not inverse) - rotation in coordinate system means
-        # the axes are rotated, so we apply the rotation to convert to unrotated space
-        if from_rotation:
-            rotation_matrix = self._get_rotation_matrix(from_rotation)
-            p = rotation_matrix @ p
-
-        # Apply inverse translation (subtract from_origin)
-        p = p - from_origin
-
         # Step 2: Convert from "normalized" to to_system's local coordinates
-        # Apply translation (add to_origin)
-        p = p + to_origin
+        # Apply B's transform in standard order: S → R → T
+        # Apply scaling (multiply by to_scale) - FIRST
+        p = p * to_scale_array
 
-        # Apply inverse rotation - to convert from unrotated space to rotated system,
-        # we apply the inverse rotation
+        # Apply rotation - SECOND
         if to_rotation:
             rotation_matrix = self._get_rotation_matrix(to_rotation)
-            rotation_matrix_inv = rotation_matrix.T
-            p = rotation_matrix_inv @ p
+            p = rotation_matrix @ p
 
-        # Apply scaling (multiply by to_scale)
-        p = p * to_scale_array
+        # Apply translation (add to_origin) - LAST
+        p = p + to_origin
 
         return tuple(p)
 
@@ -191,32 +191,32 @@ class CoordinateSystemTransformer:
         transformed = points.copy()
 
         # Step 1: Convert from from_system's local coordinates to "normalized" coordinates
-        # Apply inverse scaling (divide by from_scale)
+        # Apply A's inverse transform in reverse order: T⁻¹ → R⁻¹ → S⁻¹
+        # Apply inverse translation (subtract from_origin) - FIRST
+        transformed = transformed - from_origin
+
+        # Apply inverse rotation - SECOND
+        if from_rotation:
+            rotation_matrix = self._get_rotation_matrix(from_rotation)
+            rotation_matrix_inv = rotation_matrix.T  # For rotation matrices, inverse = transpose
+            transformed = (rotation_matrix_inv @ transformed.T).T
+
+        # Apply inverse scaling (divide by from_scale) - LAST
         from_scale_array = np.where(from_scale_array != 0, from_scale_array, 1.0)
         transformed = transformed / from_scale_array
 
-        # Apply rotation (forward, not inverse) - rotation in coordinate system means
-        # the axes are rotated, so we apply the rotation to convert to unrotated space
-        if from_rotation:
-            rotation_matrix = self._get_rotation_matrix(from_rotation)
-            transformed = (rotation_matrix @ transformed.T).T
-
-        # Apply inverse translation (subtract from_origin)
-        transformed = transformed - from_origin
-
         # Step 2: Convert from "normalized" to to_system's local coordinates
-        # Apply translation (add to_origin)
-        transformed = transformed + to_origin
+        # Apply B's transform in standard order: S → R → T
+        # Apply scaling (multiply by to_scale) - FIRST
+        transformed = transformed * to_scale_array
 
-        # Apply inverse rotation - to convert from unrotated space to rotated system,
-        # we apply the inverse rotation
+        # Apply rotation - SECOND
         if to_rotation:
             rotation_matrix = self._get_rotation_matrix(to_rotation)
-            rotation_matrix_inv = rotation_matrix.T
-            transformed = (rotation_matrix_inv @ transformed.T).T
+            transformed = (rotation_matrix @ transformed.T).T
 
-        # Apply scaling (multiply by to_scale)
-        transformed = transformed * to_scale_array
+        # Apply translation (add to_origin) - LAST
+        transformed = transformed + to_origin
 
         return transformed
 

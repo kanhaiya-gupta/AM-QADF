@@ -36,8 +36,16 @@ class VoxelGrid:
             resolution: Voxel size in mm (cubic voxels)
             aggregation: How to aggregate multiple values per voxel ('mean', 'max', 'min', 'sum')
         """
+        # Validate inputs
+        if resolution <= 0:
+            raise ValueError("Resolution must be greater than 0")
+        
         self.bbox_min = np.array(bbox_min, dtype=np.float64)
         self.bbox_max = np.array(bbox_max, dtype=np.float64)
+        
+        if np.any(self.bbox_max <= self.bbox_min):
+            raise ValueError("bbox_max must be greater than bbox_min in all dimensions")
+        
         self.resolution = float(resolution)
         self.aggregation = aggregation
 

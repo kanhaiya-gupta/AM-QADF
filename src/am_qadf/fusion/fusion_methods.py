@@ -9,11 +9,11 @@ import numpy as np
 from typing import Dict, List, Optional, Any, Callable
 from enum import Enum
 
-# Import FusionStrategy from synchronization module
+# Import FusionStrategy and DataFusion from fusion module (moved from synchronization)
 try:
-    from ..synchronization.data_fusion import FusionStrategy, DataFusion
+    from .data_fusion import FusionStrategy, DataFusion
 except ImportError:
-    # Fallback definition
+    # Fallback definition (should not be needed if module structure is correct)
     class FusionStrategy(Enum):
         AVERAGE = "average"
         WEIGHTED_AVERAGE = "weighted_average"
@@ -325,7 +325,7 @@ def get_fusion_method(strategy: FusionStrategy) -> FusionMethod:
 
 
 __all__ = [
-    "FusionStrategy",
+    # Note: FusionStrategy is exported from data_fusion module, not here
     "FusionMethod",
     "WeightedAverageFusion",
     "MedianFusion",

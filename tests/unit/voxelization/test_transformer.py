@@ -148,6 +148,9 @@ class TestCoordinateSystemTransformer:
         point = (1.0, 0.0, 0.0)  # Point on x-axis
         transformed = transformer.transform_point(point, from_system, to_system)
 
-        # After 90 degree rotation around z, (1, 0, 0) should become (0, 1, 0)
-        assert np.allclose(transformed[1], 1.0, atol=1e-5)
+        # When transforming FROM a coordinate system rotated 90° around z-axis TO an unrotated system,
+        # we apply the inverse rotation. A point (1, 0, 0) in the rotated system becomes (0, -1, 0)
+        # in the unrotated system (inverse of 90° rotation around z-axis).
+        assert np.allclose(transformed[1], -1.0, atol=1e-5)
         assert np.allclose(transformed[0], 0.0, atol=1e-5)
+        assert np.allclose(transformed[2], 0.0, atol=1e-5)

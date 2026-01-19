@@ -115,6 +115,42 @@ flowchart TB
 
 ## Key Components
 
+### MultiSourceFusion
+
+**Comprehensive multi-source fusion engine** - The primary fusion module for production use:
+
+- **Preserves all original signals** (source-prefixed)
+- **Creates source-specific fused signals** (all with `_fused` suffix)
+- **Generates multi-source fused signals** (fused from matching signal types)
+- **Complete metadata** for traceability and provenance
+- **Future-proof design** - handles new sources and signals automatically
+
+**Output Structure:**
+- Original signals: `laser_power`, `ispm_temperature`, `hatching_power`, etc.
+- Source-specific fused: `laser_power_fused`, `ispm_temperature_fused`, etc.
+- Multi-source fused: `temperature_fused`, `power_fused`, `density_fused`
+
+**Example:**
+```python
+from am_qadf.fusion import MultiSourceFusion, FusionStrategy
+
+fuser = MultiSourceFusion(
+    default_strategy=FusionStrategy.WEIGHTED_AVERAGE,
+    use_quality_scores=True
+)
+
+fused_result = fuser.fuse_sources(
+    source_grids={
+        'laser': {'signal_arrays': {...}, 'metadata': {...}},
+        'ispm': {'signal_arrays': {...}, 'metadata': {...}},
+        'hatching': {'signal_arrays': {...}, 'metadata': {...}},
+        'ct': {'signal_arrays': {...}, 'metadata': {...}}
+    },
+    source_weights={'laser': 0.25, 'ispm': 0.25, 'hatching': 0.25, 'ct': 0.25}
+)
+# Returns: Complete fused grid with 29 signals + comprehensive metadata
+```
+
 ### VoxelFusion
 
 Core fusion engine for voxel-level signal fusion:
@@ -122,6 +158,7 @@ Core fusion engine for voxel-level signal fusion:
 - Fuses multiple signals per voxel
 - Supports various fusion strategies
 - Handles missing data gracefully
+- Used internally by MultiSourceFusion
 
 ### MultiVoxelGridFusion
 
@@ -148,7 +185,68 @@ Fuses multiple voxel grids into a single grid:
 
 ## Usage Examples
 
-### Basic Fusion
+### Comprehensive Multi-Source Fusion (Recommended)
+
+```python
+from am_qadf.fusion import MultiSourceFusion, FusionStrategy
+
+# Initialize comprehensive fusion
+fuser = MultiSourceFusion(
+    default_strategy=FusionStrategy.WEIGHTED_AVERAGE,
+    use_quality_scores=True,
+    normalize_weights=True
+)
+
+# Prepare source grids (from MongoDB or other sources)
+source_grids = {
+    'laser': {
+        'signal_arrays': {
+            'laser_power': array1,
+            'laser_velocity': array2,
+            'laser_energy': array3
+        },
+        'metadata': {...},
+        'grid_id': '...',
+        'grid_name': '...',
+        'quality_score': 0.85,
+        'coverage': 1.0
+    },
+    'ispm': {
+        'signal_arrays': {
+            'ispm_temperature': array4,
+            'ispm_cooling_rate': array5,
+            ...
+        },
+        ...
+    },
+    # ... other sources
+}
+
+# Execute comprehensive fusion
+fused_result = fuser.fuse_sources(
+    source_grids=source_grids,
+    source_weights={'laser': 0.25, 'ispm': 0.25, 'hatching': 0.25, 'ct': 0.25},
+    quality_scores={'laser': 0.85, 'ispm': 0.88, 'hatching': 0.82, 'ct': 0.80},
+    fusion_strategy=FusionStrategy.WEIGHTED_AVERAGE
+)
+
+# Access results
+signal_arrays = fused_result['signal_arrays']  # 29 signals total
+metadata = fused_result['metadata']  # Complete metadata
+
+# Original signals
+laser_power = signal_arrays['laser_power']
+ispm_temperature = signal_arrays['ispm_temperature']
+
+# Source-specific fused signals
+laser_power_fused = signal_arrays['laser_power_fused']
+
+# Multi-source fused signals
+temperature_fused = signal_arrays['temperature_fused']  # Fused from ispm + hatching + ct
+power_fused = signal_arrays['power_fused']  # Fused from hatching + ct
+```
+
+### Basic Fusion (Legacy)
 
 ```python
 from am_qadf.fusion import VoxelFusion, WeightedAverageFusion
@@ -225,6 +323,55 @@ fused = quality_fusion.fuse(
 )
 ```
 
+## Fused Grid Structure
+
+The `MultiSourceFusion` module creates a comprehensive fused grid with the following structure:
+
+### Signal Arrays
+
+The fused grid contains **three categories of signals**:
+
+1. **Original Signals** (13 signals - preserved as-is from sources)
+   - Source-prefixed signals: `laser_power`, `laser_velocity`, `laser_energy`
+   - `ispm_cooling_rate`, `ispm_peak_temperature`, `ispm_temperature`, `ispm_temperature_gradient`
+   - `hatching_temperature`, `hatching_power`, `hatching_density`
+   - `ct_temperature`, `ct_power`, `ct_density`
+
+2. **Source-Specific Fused Signals** (13 signals - all with `_fused` suffix)
+   - `laser_power_fused`, `laser_velocity_fused`, `laser_energy_fused`
+   - `ispm_cooling_rate_fused`, `ispm_peak_temperature_fused`, `ispm_temperature_fused`, `ispm_temperature_gradient_fused`
+   - `hatching_temperature_fused`, `hatching_power_fused`, `hatching_density_fused`
+   - `ct_temperature_fused`, `ct_power_fused`, `ct_density_fused`
+
+3. **Multi-Source Fused Signals** (3 signals - fused from matching types)
+   - `temperature_fused`: Fused from `ispm_temperature_fused` + `hatching_temperature_fused` + `ct_temperature_fused`
+   - `power_fused`: Fused from `hatching_power_fused` + `ct_power_fused`
+   - `density_fused`: Fused from `hatching_density_fused` + `ct_density_fused`
+
+**Total: 29 signals** (13 original + 13 source-specific fused + 3 multi-source fused)
+
+### Metadata Structure
+
+The fused grid includes comprehensive metadata:
+
+- **Grid Metadata**: Name, ID, shape, resolution, bounding box, timestamps
+- **Fusion Metadata**: Strategy, sources, method, timestamps
+- **Signal Categorization**: Lists of original, source-specific fused, multi-source fused, unique, and shared signals
+- **Source Mapping**: Complete mapping of each source to its signals and metadata
+- **Multi-Source Fusion Metadata**: Detailed fusion information for each multi-source fused signal
+- **Signal Statistics**: Statistics (min, max, mean, std, coverage) for all signals
+- **Fusion Quality Metrics**: Overall fusion score, coverage, consistency, quality scores
+- **Configuration Metadata**: Fusion configuration and parameters
+- **Provenance & Lineage**: Complete traceability of source grids and processing chain
+
+### Benefits
+
+- **Complete Data Preservation**: All original signals are preserved
+- **Future-Proof**: New sources can be added without breaking existing code
+- **Full Traceability**: Complete metadata for audit and reproducibility
+- **Flexible Analysis**: Use original, source-specific, or multi-source fused signals as needed
+- **Industry Standard**: Follows best practices for multi-modal data fusion
+
 ## Fusion Strategy Selection
 
 ```mermaid
@@ -264,6 +411,7 @@ graph TB
 
 ## Related
 
+- [Fused Grid Structure Reference](fusion-grid-structure.md) - Complete structure reference
 - [Signal Mapping Module](signal-mapping.md) - Creates grids to fuse
 - [Quality Module](quality.md) - Provides quality metrics
 - [Synchronization Module](synchronization.md) - Aligns data before fusion

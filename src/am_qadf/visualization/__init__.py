@@ -25,10 +25,37 @@ from .notebook_widgets import (
     VoxelVisualizationWidgets,
 )
 
+from .hatching_visualizer import (
+    HatchingVisualizer,
+)
+
+from .grid_visualizer import (
+    GridVisualizer,
+)
+
+from .signal_grid_visualizer import (
+    SignalGridVisualizer,
+    visualize_signal_grid,
+)
+
+from .pyvista_voxel_visualizer import (
+    PyVistaVoxelVisualizer,
+)
+
+from .html_exporter import (
+    PyVistaHTMLExporter,
+)
+
 __all__ = [
     "VoxelRenderer",
     "MultiResolutionViewer",
     "MultiResolutionWidgets",
     "AdaptiveResolutionWidgets",
     "VoxelVisualizationWidgets",
+    "HatchingVisualizer",
+    "GridVisualizer",
+    "SignalGridVisualizer",
+    "visualize_signal_grid",
+    "PyVistaVoxelVisualizer",
+    "PyVistaHTMLExporter",
 ]

@@ -51,6 +51,22 @@ class MultiResolutionGrid:
             num_levels: Number of resolution levels
             level_ratio: Resolution ratio between levels (e.g., 2.0 = each level is 2x coarser)
         """
+        # Validate inputs
+        if base_resolution <= 0:
+            raise ValueError("Base resolution must be greater than 0")
+        
+        if num_levels < 1:
+            raise ValueError("Number of levels must be at least 1")
+        
+        if level_ratio <= 0:
+            raise ValueError("Level ratio must be greater than 0")
+        
+        bbox_min_arr = np.array(bbox_min)
+        bbox_max_arr = np.array(bbox_max)
+        
+        if np.any(bbox_max_arr <= bbox_min_arr):
+            raise ValueError("bbox_max must be greater than bbox_min in all dimensions")
+        
         self.bbox_min = bbox_min
         self.bbox_max = bbox_max
         self.base_resolution = base_resolution
@@ -163,21 +179,55 @@ class MultiResolutionGrid:
 
         return grid.get_signal_array(signal_name, default=default)
 
-    def get_statistics(self, level: int = 0) -> Dict[str, Any]:
+    def get_statistics(self, level: Optional[int] = None) -> Dict[str, Any]:
         """
-        Get statistics for a specific level.
+        Get statistics for a specific level or aggregate across all levels.
 
         Args:
-            level: Resolution level
+            level: Resolution level (if None, returns aggregate statistics across all levels)
 
         Returns:
             Statistics dictionary
         """
-        grid = self.get_level(level)
-        if grid is None:
-            raise ValueError(f"Level {level} not found")
-
-        return grid.get_statistics()
+        if level is not None:
+            # Return statistics for a specific level
+            grid = self.get_level(level)
+            if grid is None:
+                raise ValueError(f"Level {level} not found")
+            return grid.get_statistics()
+        else:
+            # Return aggregate statistics across all levels
+            if not self.grids:
+                return {
+                    "dimensions": None,
+                    "total_voxels": 0,
+                    "filled_voxels": 0,
+                    "num_levels": 0,
+                }
+            
+            # Get finest level for dimensions
+            finest_level = max(self.grids.keys())
+            finest_grid = self.grids[finest_level]
+            finest_stats = finest_grid.get_statistics()
+            
+            # Sum total voxels and filled voxels across all levels
+            total_voxels = 0
+            filled_voxels = 0
+            
+            for grid in self.grids.values():
+                grid_stats = grid.get_statistics()
+                total_voxels += grid_stats.get("total_voxels", 0)
+                filled_voxels += grid_stats.get("filled_voxels", 0)
+            
+            return {
+                "dimensions": finest_stats.get("dimensions"),
+                "total_voxels": int(total_voxels),
+                "filled_voxels": int(filled_voxels),
+                "num_levels": len(self.grids),
+                "base_resolution": self.base_resolution,
+                "level_ratio": self.level_ratio,
+                "resolutions": {level: self.resolutions[level] for level in self.grids.keys()},
+            }
 
     def select_appropriate_level(self, target_resolution: float, prefer_coarse: bool = False) -> int:
         """

@@ -179,6 +179,46 @@ result_grid = interpolate_to_voxels(
 power_array = result_grid.get_signal_array('power')
 ```
 
+## Output Structure: Signal-Mapped Voxel Grid
+
+After signal mapping, all signals from different data sources are stored in a **single unified 3D voxel grid**. Each voxel can contain signals from multiple data types, allowing for multi-source data analysis at the same spatial location.
+
+### Voxel Grid Structure
+
+```
+Single 3D Voxel Grid
+├── Voxel at (i, j, k)
+│   └── signals: {
+│       ├── 'power': 250.5,          ← from hatching/laser
+│       ├── 'velocity': 1200.0,      ← from hatching/laser
+│       ├── 'energy': 0.21,          ← from hatching/laser
+│       ├── 'temperature': 850.2,    ← from ISPM
+│       ├── 'cooling_rate': 150.5,   ← from ISPM
+│       └── 'density': 0.95          ← from CT
+│   }
+```
+
+### Key Characteristics
+
+1. **Single Unified Grid**: All data types (hatching, laser, CT, ISPM) map to the same 3D spatial grid
+2. **Multiple Signals Per Voxel**: Each voxel can store signals from multiple sources simultaneously
+3. **Signal Names**: Different data sources use different signal names (no conflicts)
+4. **Spatial Alignment**: All signals share the same coordinate system (requires alignment first)
+
+### Signal Names by Data Source
+
+- **Hatching**: `'power'`, `'velocity'`, `'energy'`
+- **Laser**: `'power'`, `'velocity'`, `'energy'`
+- **ISPM**: `'temperature'`, `'peak_temperature'`, `'cooling_rate'`, `'temperature_gradient'`
+- **CT**: `'density'`
+
+### Benefits of Unified Structure
+
+- **Correlation Analysis**: Analyze relationships between different signal types at the same location
+- **Multi-Source Fusion**: Combine signals from different sources for comprehensive analysis
+- **Quality Assessment**: Assess quality using signals from all available data sources
+- **Unified Visualization**: Visualize any signal individually or multiple signals simultaneously
+
 ## Interpolation Methods Comparison
 
 ```mermaid

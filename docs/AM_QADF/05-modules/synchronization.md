@@ -4,6 +4,118 @@
 
 The Synchronization module handles temporal and spatial alignment of multi-source data, enabling accurate fusion of data from different sources with different coordinate systems and time references.
 
+## What We Do: The Problem
+
+Different data sources in additive manufacturing use **different coordinate systems** and **different time references**:
+
+- **Hatching data**: Uses build platform coordinates, referenced by layer numbers
+- **Laser parameters**: Uses machine coordinates, referenced by timestamps
+- **CT scans**: Uses CT scanner coordinates, referenced by scan time
+- **ISPM sensors**: Uses sensor coordinates, referenced by sensor timestamps
+
+**Without alignment**, we cannot:
+- Compare data from different sources at the same spatial location
+- Fuse signals from multiple sources
+- Create accurate quality assessments
+- Map signals to a unified voxel grid
+
+## How We Do It: The Process
+
+### 1. Temporal Alignment ⏰
+**Purpose**: Align data to a common time reference (build layers)
+
+**Process**:
+- Map timestamps from different sources to build layer numbers
+- Use `LayerTimeMapper` to convert between time and layers
+- Align temporal data to specific layers using interpolation
+
+**Result**: All data sources have consistent layer-based time references
+
+### 2. Spatial Transformation 📍
+**Purpose**: Transform points from different coordinate systems to a common reference frame
+
+**Process**:
+- Define coordinate system transformations (translation, rotation, scale)
+- Create 4x4 transformation matrices
+- Apply transformations to point coordinates from each source
+- Transform: `point_new = rotation × scale × point_old + translation`
+
+**Result**: All points are in the same coordinate system (typically build platform coordinates)
+
+### 3. Data Structure Preparation 🔄
+**Purpose**: Organize aligned data for signal mapping and fusion
+
+**Process**:
+- Extract points and signals from each data source
+- Store transformed points in a common format
+- Preserve signal values (power, temperature, density, etc.) with their transformed points
+- Store transformation metadata (transformation matrix, alignment mode)
+
+**Result**: Structured aligned data ready for signal mapping
+
+## What Results We Get: The Output
+
+After temporal and spatial alignment, we get **aligned data** with the following structure:
+
+```python
+aligned_data = {
+    'hatching': {
+        'points': np.ndarray,      # (N, 3) - transformed points in common coordinate system
+        'signals': {               # Signal values at each point
+            'power': np.ndarray,   # (N,)
+            'velocity': np.ndarray, # (N,)
+            'energy': np.ndarray    # (N,)
+        },
+        'times': np.ndarray,       # (N,) - timestamps
+        'layers': np.ndarray       # (N,) - layer indices
+    },
+    'laser': {
+        'points': np.ndarray,      # (N, 3) - transformed points
+        'signals': {
+            'power': np.ndarray,
+            'velocity': np.ndarray,
+            'energy': np.ndarray
+        },
+        'times': np.ndarray,
+        'layers': np.ndarray
+    },
+    'ct': {
+        'points': np.ndarray,      # (N, 3) - transformed points
+        'signals': {
+            'density': np.ndarray  # (N,)
+        },
+        'times': np.ndarray,
+        'layers': np.ndarray
+    },
+    'ispm': {
+        'points': np.ndarray,      # (N, 3) - transformed points
+        'signals': {
+            'temperature': np.ndarray,        # (N,)
+            'cooling_rate': np.ndarray,       # (N,)
+            'temperature_gradient': np.ndarray # (N,)
+        },
+        'times': np.ndarray,
+        'layers': np.ndarray
+    }
+}
+
+# Transformation metadata
+transformation_matrix = np.ndarray  # (4, 4) - transformation matrix used
+alignment_metrics = {
+    'alignment_error': float,      # Alignment accuracy metric
+    'coverage': float,             # Data coverage metric
+    # ... other metrics
+}
+```
+
+### Key Characteristics of Aligned Data
+
+1. **Unified Coordinate System**: All points are in the same coordinate system (typically build platform coordinates)
+2. **Consistent Time Reference**: All data is aligned to build layers
+3. **Complete Signal Information**: All signals from original data are preserved
+4. **Ready for Signal Mapping**: Can be directly used to map signals to voxel grids
+5. **Transformation Traceability**: Transformation matrix is stored for reference and validation
+
 ## Architecture
 
 ```mermaid

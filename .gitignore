@@ -21,6 +21,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+kill.py
 MANIFEST
 
 # Virtual Environments
@@ -209,6 +210,19 @@ test_report.html
 
 # Old/backup notebooks
 notebooks_old/
+
+# Frontend for local
+client/
+
+examples/client*
+
+v1client/
+
+demo/new/
+
+implementation_plan/
+
+generation/scripts/
 
 # Performance baseline files (auto-generated, but may want to track)
 # Uncomment if you want to ignore auto-generated baselines:

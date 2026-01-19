@@ -2,7 +2,92 @@
 
 ## Overview
 
-The Fusion module provides multi-source data fusion capabilities for combining signals from different sources.
+The Fusion module provides multi-source data fusion capabilities for combining signals from different sources. The primary interface is `MultiSourceFusion`, which creates comprehensive fused grids with complete signal preservation and metadata.
+
+## MultiSourceFusion
+
+**Comprehensive multi-source fusion engine** - The recommended interface for production use.
+
+```python
+from am_qadf.fusion import MultiSourceFusion, FusionStrategy
+
+fuser = MultiSourceFusion(
+    default_strategy: FusionStrategy = FusionStrategy.WEIGHTED_AVERAGE,
+    use_quality_scores: bool = True,
+    normalize_weights: bool = True
+)
+```
+
+### Methods
+
+#### `fuse_sources(source_grids: Dict[str, Dict[str, Any]], source_weights: Optional[Dict[str, float]] = None, quality_scores: Optional[Dict[str, float]] = None, fusion_strategy: Optional[FusionStrategy] = None, grid_name: Optional[str] = None, grid_id: Optional[str] = None) -> Dict[str, Any]`
+
+Fuse multiple source grids into a comprehensive fused grid.
+
+**Parameters**:
+- `source_grids` (Dict[str, Dict[str, Any]]): Dictionary mapping source names to grid data
+  - Each grid data should contain:
+    - `signal_arrays` (Dict[str, np.ndarray]): Signal arrays from the source
+    - `metadata` (Dict): Grid metadata
+    - `grid_id` (str): Source grid ID
+    - `grid_name` (str): Source grid name
+    - `quality_score` (float): Optional quality score (0-1)
+    - `coverage` (float): Optional coverage score (0-1)
+- `source_weights` (Optional[Dict[str, float]]): Optional weights for each source
+- `quality_scores` (Optional[Dict[str, float]]): Optional quality scores for each source
+- `fusion_strategy` (Optional[FusionStrategy]): Fusion strategy (None = use default)
+- `grid_name` (Optional[str]): Name for the fused grid
+- `grid_id` (Optional[str]): ID for the fused grid
+
+**Returns**: Dictionary with:
+- `signal_arrays` (Dict[str, np.ndarray]): All signals (original + source-specific fused + multi-source fused)
+- `metadata` (Dict): Comprehensive metadata including:
+  - Grid metadata
+  - Fusion metadata
+  - Signal categorization
+  - Source mapping
+  - Multi-source fusion metadata
+  - Signal statistics
+  - Fusion quality metrics
+  - Configuration metadata
+  - Provenance & lineage
+
+**Example**:
+```python
+fused_result = fuser.fuse_sources(
+    source_grids={
+        'laser': {
+            'signal_arrays': {'laser_power': array1, 'laser_velocity': array2},
+            'metadata': {...},
+            'grid_id': '...',
+            'quality_score': 0.85
+        },
+        'ispm': {
+            'signal_arrays': {'ispm_temperature': array3},
+            'metadata': {...},
+            'grid_id': '...',
+            'quality_score': 0.88
+        }
+    },
+    source_weights={'laser': 0.5, 'ispm': 0.5},
+    quality_scores={'laser': 0.85, 'ispm': 0.88}
+)
+
+# Access results
+signal_arrays = fused_result['signal_arrays']  # All signals
+metadata = fused_result['metadata']  # Complete metadata
+
+# Original signals
+laser_power = signal_arrays['laser_power']
+
+# Source-specific fused
+laser_power_fused = signal_arrays['laser_power_fused']
+
+# Multi-source fused (if multiple sources have same signal type)
+temperature_fused = signal_arrays.get('temperature_fused')
+```
+
+---
 
 ## VoxelFusion
 
@@ -329,6 +414,7 @@ Compare different fusion strategies.
 ## Related
 
 - [Fusion Module Documentation](../05-modules/fusion.md) - Module overview
+- [Fused Grid Structure Reference](../05-modules/fusion-grid-structure.md) - Complete structure reference
 - [Synchronization API](synchronization-api.md) - DataFusion base class
 - [All API References](README.md) - Other API references
 

@@ -16,15 +16,31 @@ flowchart TD
     Thermal["🔥 Thermal Data<br/>Heat Distribution"] --> Query
     Metadata["📋 Build Metadata<br/>Process Parameters"] --> Query
     
-    Query --> Sync["Synchronization<br/>⏰ Temporal & Spatial Alignment"]
+    Query --> MetadataExtract["Metadata Extraction<br/>📊 Min, Max, Union, Statistics"]
     
-    Sync --> SignalMap["Signal Mapping<br/>🧊 Map to 3D Structure"]
+    MetadataExtract --> Grid1["Grid Creation<br/>🧊 Source 1<br/>STL/Union/Bounds"]
+    MetadataExtract --> Grid2["Grid Creation<br/>🧊 Source 2<br/>STL/Union/Bounds"]
+    MetadataExtract --> Grid3["Grid Creation<br/>🧊 Source N<br/>STL/Union/Bounds"]
     
-    SignalMap --> Correction["Correction<br/>📐 Geometric Distortion & Calibration"]
+    Grid1 --> Map1["Signal Mapping<br/>🎯 Map to Grid 1"]
+    Grid2 --> Map2["Signal Mapping<br/>🎯 Map to Grid 2"]
+    Grid3 --> Map3["Signal Mapping<br/>🎯 Map to Grid N"]
     
-    Correction --> Processing["Signal Processing<br/>🔧 Noise Reduction"]
+    Map1 --> Sync1["Synchronization<br/>⏰ Temporal & Spatial<br/>Relative to Ground Truth"]
+    Map2 --> Sync2["Synchronization<br/>⏰ Temporal & Spatial<br/>Relative to Ground Truth"]
+    Map3 --> Sync3["Synchronization<br/>⏰ Temporal & Spatial<br/>Relative to Ground Truth"]
     
-    Processing --> Fusion["Data Fusion<br/>🔀 Multi-Source Fusion"]
+    Sync1 --> Correct1["Correction & Calibration<br/>📐 Grid 1"]
+    Sync2 --> Correct2["Correction & Calibration<br/>📐 Grid 2"]
+    Sync3 --> Correct3["Correction & Calibration<br/>📐 Grid N"]
+    
+    Correct1 --> Process1["Signal Processing<br/>🔧 Grid 1"]
+    Correct2 --> Process2["Signal Processing<br/>🔧 Grid 2"]
+    Correct3 --> Process3["Signal Processing<br/>🔧 Grid N"]
+    
+    Process1 --> Fusion["Data Fusion<br/>🔀 Multi-Source Fusion"]
+    Process2 --> Fusion
+    Process3 --> Fusion
     
     Fusion --> Quality["Quality Assessment<br/>✅ Quality Evaluation"]
     
@@ -54,30 +70,59 @@ flowchart TD
     %% Styling
     classDef input fill:#f5f5f5,stroke:#424242,stroke-width:3px
     classDef process fill:#e3f2fd,stroke:#0277bd,stroke-width:2px
+    classDef parallel fill:#fff9c4,stroke:#f57f17,stroke-width:2px
     classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:3px
     classDef analysis fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef output fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    classDef output fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
     classDef action fill:#ffccbc,stroke:#d84315,stroke-width:3px
     
     class Hatching,Laser,CT,ISPM,Thermal,Metadata input
-    class Query,Sync,SignalMap,Correction,Processing,Fusion,Quality,Validate process
+    class Query,MetadataExtract,Fusion,Quality,Validate process
+    class Grid1,Grid2,Grid3,Map1,Map2,Map3,Sync1,Sync2,Sync3,Correct1,Correct2,Correct3,Process1,Process2,Process3 parallel
     class Analyze decision
     class Stats,Sensitivity,Anomaly,SPC,Process,Virtual analysis
     class Visualize,Report output
     class Decision action
 ```
 
+### Workflow Overview
+
+The AM-QADF framework follows a parallel processing workflow where each data source is processed independently before fusion:
+
+1. **Query & Metadata Extraction**: Query data from multiple sources (hatching paths, laser parameters, CT scans, in-situ monitoring, thermal data) and extract metadata including min/max values, union bounds, and statistical summaries for each source.
+
+2. **Per-Source Grid Creation**: Create separate voxel grids for each data source. Grid bounds can be derived from:
+   - STL file bounding box
+   - Union of data source coordinates
+   - Source-specific bounds
+
+3. **Per-Source Signal Mapping**: Map signals separately to their respective grids using interpolation methods (Nearest Neighbor, Linear, IDW, KDE, RBF).
+
+4. **Per-Source Synchronization**: Temporally and spatially align each grid relative to the Ground Truth (Build System coordinate system).
+
+5. **Per-Source Correction & Calibration**: Apply geometric distortion correction and calibration to each grid independently.
+
+6. **Per-Source Signal Processing**: Process signals and reduce noise for each grid independently.
+
+7. **Data Fusion**: Fuse all processed grids into a unified voxel domain.
+
+8. **Quality Assessment & Analysis**: Assess quality, perform analytics, detect anomalies, and visualize results.
+
 ## ✨ Key Features
 
 ### 🔍 Multi-Source Data Integration
 - **Unified Query Interface**: Access multiple data sources (hatching paths, laser parameters, CT scans, in-situ monitoring, thermal data)
-- **Data Fusion**: Combine data from disparate sources into a coherent voxel domain
-- **Synchronization**: Temporal and spatial alignment of multi-source data
+- **Metadata Extraction**: Compute and store metadata (min, max, union bounds, statistical summaries) for each data source
+- **Per-Source Processing**: Process each data source independently through its own pipeline before fusion
+- **Data Fusion**: Combine processed data from disparate sources into a coherent voxel domain
+- **Synchronization**: Temporal and spatial alignment of each grid relative to Ground Truth (Build System)
 
 ### 🧊 Voxel Domain Processing
-- **Voxelization**: Convert point cloud data to structured voxel grids
-- **Signal Mapping**: Interpolate signals onto voxel grids using multiple methods (Nearest Neighbor, Linear, IDW, KDE, RBF)
+- **Per-Source Voxelization**: Create separate voxel grids for each data source with bounds from STL, union, or source-specific coordinates
+- **Signal Mapping**: Interpolate signals onto their respective grids using multiple methods (Nearest Neighbor, Linear, IDW, KDE, RBF)
 - **Multi-Resolution**: Support for adaptive and multi-resolution grids
+- **Per-Source Correction**: Apply geometric distortion correction and calibration to each grid independently
+- **Per-Source Signal Processing**: Process signals and reduce noise for each grid independently
 
 ### ✅ Quality Assessment & Validation
 - **Completeness**: Assess data coverage and identify gaps
@@ -149,6 +194,8 @@ pip install -e .
 
 ### Basic Usage
 
+The framework processes each data source independently through the complete pipeline:
+
 ```python
 from src.infrastructure.database import get_connection_manager
 from am_qadf.query import UnifiedQueryClient
@@ -161,14 +208,24 @@ mongodb_client = manager.get_mongodb_client()
 # Create query client
 query_client = UnifiedQueryClient(mongo_client=mongodb_client)
 
-# Create voxel domain client
+# Create voxel domain client (orchestrates the workflow)
 voxel_client = VoxelDomainClient(
     unified_query_client=query_client,
     base_resolution=1.0
 )
 
-# Map signals to voxels
-voxel_grid = voxel_client.map_signals_to_voxels(
+# The framework automatically:
+# 1. Queries data from multiple sources
+# 2. Extracts metadata (min, max, union, statistics) for each source
+# 3. Creates separate grids for each source
+# 4. Maps signals to their respective grids
+# 5. Synchronizes each grid relative to Ground Truth
+# 6. Corrects and calibrates each grid
+# 7. Processes signals for each grid
+# 8. Fuses all grids into unified voxel domain
+
+# Execute complete workflow
+fused_grid = voxel_client.execute_complete_workflow(
     model_id="my_model",
     sources=['hatching', 'laser', 'ct'],
     interpolation_method='linear'
@@ -177,7 +234,7 @@ voxel_grid = voxel_client.map_signals_to_voxels(
 # Visualize
 from am_qadf.visualization import VoxelRenderer
 renderer = VoxelRenderer()
-renderer.render(voxel_grid, signal_name='power')
+renderer.render(fused_grid, signal_name='power')
 ```
 
 ## 🐳 Docker Setup
