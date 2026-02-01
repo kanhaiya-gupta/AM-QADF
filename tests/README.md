@@ -60,7 +60,6 @@ pytest tests/unit/core/test_entities.py::test_voxel_data_creation
 - `@pytest.mark.performance` - Performance tests
 - `@pytest.mark.slow` - Slow-running tests
 - `@pytest.mark.requires_mongodb` - Tests requiring MongoDB
-- `@pytest.mark.requires_spark` - Tests requiring Spark
 
 ## Coverage Requirements
 

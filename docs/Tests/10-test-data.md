@@ -22,7 +22,6 @@ tests/fixtures/
 │   └── sample_signals.npz
 └── mocks/              # Mock objects
     ├── mock_mongodb.py
-    ├── mock_spark.py
     └── mock_query_clients.py
 ```
 

@@ -7,9 +7,7 @@ Provides interfaces for querying different data sources:
 - Hatching paths
 - Laser parameters
 - CT scan data
-- ISPM monitoring data
-- Thermal data
-- Build metadata
+- ISPM monitoring data (Thermal, Optical)
 """
 
 from .base_query_client import (
@@ -22,11 +20,13 @@ from .base_query_client import (
 
 from .stl_model_client import STLModelClient
 from .hatching_client import HatchingClient
-from .laser_parameter_client import LaserParameterClient
+from .laser_monitoring_client import LaserMonitoringClient
 from .ct_scan_client import CTScanClient
-from .in_situ_monitoring_client import InSituMonitoringClient
-from .thermal_client import ThermalClient
-from .build_metadata_client import BuildMetadataClient, ComponentInfo, BuildStyleInfo
+from .ispm_thermal_client import ISPMThermalClient
+from .ispm_optical_client import ISPMOpticalClient
+from .ispm_acoustic_client import ISPMAcousticClient
+from .ispm_strain_client import ISPMStrainClient
+from .ispm_plume_client import ISPMPlumeClient
 from .unified_query_client import UnifiedQueryClient
 
 __all__ = [
@@ -39,13 +39,12 @@ __all__ = [
     # Query clients
     "STLModelClient",
     "HatchingClient",
-    "LaserParameterClient",
+    "LaserMonitoringClient",
     "CTScanClient",
-    "InSituMonitoringClient",
-    "ThermalClient",
-    "BuildMetadataClient",
+    "ISPMThermalClient",
+    "ISPMOpticalClient",
+    "ISPMAcousticClient",
+    "ISPMStrainClient",
+    "ISPMPlumeClient",
     "UnifiedQueryClient",
-    # Data classes
-    "ComponentInfo",
-    "BuildStyleInfo",
 ]

@@ -10,6 +10,7 @@ Can be used by:
 - CLI tools
 - Other modules
 """
+from __future__ import annotations
 
 import logging
 import json
@@ -47,7 +48,8 @@ class PyVistaHTMLExporter:
         grid_data: Dict[str, Any],
         fallback_to_threejs: bool = True,
         voxelized_mesh: Optional[Any] = None,
-        stl_client: Optional[Any] = None
+        stl_client: Optional[Any] = None,
+        prefer_threejs_for_surface: bool = False,
     ) -> str:
         """
         Export PyVista plotter to interactive HTML.
@@ -56,38 +58,43 @@ class PyVistaHTMLExporter:
             plotter: PyVista Plotter object
             grid_data: Grid data dictionary for metadata
             fallback_to_threejs: Whether to fallback to Three.js HTML if PyVista export fails
-            voxelized_mesh: Optional voxelized mesh for Three.js fallback
+            voxelized_mesh: Optional mesh (surface or voxelized) for Three.js viewer
             stl_client: Optional STL client for mesh recreation
+            prefer_threejs_for_surface: If True, skip PyVista export_html and use Three.js
+                immediately so the result is always interactive (orbit/pan/zoom).
+                Use this for STL surface view on servers where PyVista export_html
+                may fail or produce static content.
             
         Returns:
             HTML content as string
         """
+        # Prefer Three.js path for surface (e.g. STL): always interactive, no trame required
+        if prefer_threejs_for_surface and voxelized_mesh is not None:
+            logger.info("Using Three.js interactive viewer for surface (prefer_threejs_for_surface=True)")
+            return self.create_threejs_viewer_from_mesh(
+                mesh=voxelized_mesh,
+                grid_data=grid_data,
+                stl_client=stl_client,
+            )
         try:
-            # PyVista's export_html requires pythreejs or panel
-            # Let's try it first, but if it fails, use a simpler approach
+            # PyVista's export_html requires trame; may fail or be static on headless servers
             with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
                 temp_path = f.name
             
             try:
-                # Try PyVista's export_html (requires pythreejs or panel)
-                # Note: Some versions don't support 'title' parameter
                 try:
                     plotter.export_html(
                         temp_path,
                         title=f"Voxel Grid Visualization - {grid_data.get('grid_id', 'Unknown')}"
                     )
                 except TypeError:
-                    # Fallback for versions that don't support title parameter
                     plotter.export_html(temp_path)
                 
-                # Read and verify HTML content
                 with open(temp_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
                 
-                # Clean up temp file
                 Path(temp_path).unlink()
                 
-                # Verify HTML is not empty
                 if html_content and len(html_content.strip()) > 100:
                     logger.info("Successfully exported PyVista interactive HTML")
                     return html_content
@@ -97,7 +104,6 @@ class PyVistaHTMLExporter:
             except Exception as export_error:
                 logger.warning(f"PyVista export_html failed: {export_error}, using mesh-based interactive viewer")
                 
-                # Fallback: Create interactive viewer from mesh data
                 if fallback_to_threejs:
                     return self.create_threejs_viewer_from_mesh(
                         mesh=voxelized_mesh,
@@ -109,7 +115,6 @@ class PyVistaHTMLExporter:
             
         except Exception as e:
             logger.error(f"HTML export failed: {e}", exc_info=True)
-            # Try mesh-based interactive viewer first
             if fallback_to_threejs:
                 try:
                     return self.create_threejs_viewer_from_mesh(
@@ -215,8 +220,19 @@ class PyVistaHTMLExporter:
         
         grid_id = grid_data.get('grid_id', 'Unknown')
         metadata = grid_data.get('metadata', {})
-        bbox_min = metadata.get('bbox_min', [0, 0, 0])
-        bbox_max = metadata.get('bbox_max', [100, 100, 100])
+        bbox_min = metadata.get('bbox_min')
+        bbox_max = metadata.get('bbox_max')
+        if bbox_min is None or bbox_max is None:
+            # Derive from mesh bounds (e.g. for STL surface)
+            b = getattr(mesh, 'bounds', None)
+            if b is not None and len(b) >= 6:
+                bbox_min = [float(b[0]), float(b[2]), float(b[4])]
+                bbox_max = [float(b[1]), float(b[3]), float(b[5])]
+            else:
+                bbox_min = bbox_min or [0, 0, 0]
+                bbox_max = bbox_max or [100, 100, 100]
+        bbox_min = list(bbox_min)
+        bbox_max = list(bbox_max)
         
         # Calculate center and size
         center = [
@@ -230,135 +246,207 @@ class PyVistaHTMLExporter:
             bbox_max[2] - bbox_min[2]
         ]
         max_dim = max(size)
-        
+        page_title = "STL Surface" if (isinstance(grid_id, str) and grid_id.startswith("stl_")) else "3D View"
         return f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Voxel Grid Visualization - {grid_id}</title>
-            <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+            <title>{page_title}</title>
             <style>
-                body {{
-                    margin: 0;
-                    padding: 0;
-                    background: #f5f5f5;
-                    font-family: Arial, sans-serif;
-                    overflow: hidden;
-                }}
-                #container {{
-                    width: 100%;
-                    height: 100vh;
-                }}
-                #info {{
-                    position: absolute;
-                    top: 10px;
-                    left: 10px;
-                    background: rgba(255, 255, 255, 0.9);
-                    color: #333;
-                    padding: 10px;
-                    border-radius: 5px;
-                    z-index: 100;
-                    font-size: 12px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                }}
-                #info h3 {{
-                    margin: 0 0 5px 0;
-                    color: #4A90E2;
-                }}
+                body {{ margin: 0; padding: 0; background: #f5f5f5; font-family: Arial, sans-serif; overflow: hidden; }}
+                #container {{ width: 100%; height: 100vh; }}
+                #info {{ position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); color: #333; padding: 10px; border-radius: 5px; z-index: 100; font-size: 12px; }}
+                #info h3 {{ margin: 0 0 5px 0; color: #4A90E2; }}
             </style>
         </head>
         <body>
             <div id="container"></div>
             <div id="info">
-                <h3>Voxel Grid: {grid_id}</h3>
+                <h3>{page_title}</h3>
                 <p>Cells: {mesh.n_cells:,}</p>
-                <p><small>Use mouse to rotate, scroll to zoom, right-click to pan</small></p>
+                <p><small>Drag to rotate, scroll to zoom, right-drag to pan</small></p>
             </div>
-            <script>
-                // Scene setup
+            <script type="importmap">
+            {{"imports": {{"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}}}
+            </script>
+            <script type="module">
+                import * as THREE from 'three';
+                import {{ OrbitControls }} from 'three/addons/controls/OrbitControls.js';
                 const scene = new THREE.Scene();
                 scene.background = new THREE.Color(0xf5f5f5);
-                
                 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
                 const renderer = new THREE.WebGLRenderer({{ antialias: true }});
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.setClearColor(0xf5f5f5, 1);
                 document.getElementById('container').appendChild(renderer.domElement);
-                
-                // Camera position
                 const center = {json.dumps(center)};
                 const maxDim = {max_dim};
                 const distance = maxDim * 2.5;
                 camera.position.set(center[0] + distance, center[1] + distance, center[2] + distance);
                 camera.lookAt(center[0], center[1], center[2]);
-                
-                // Lights
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-                scene.add(ambientLight);
-                const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-                directionalLight1.position.set(1, 1, 1);
-                scene.add(directionalLight1);
-                const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.6);
-                directionalLight2.position.set(-1, -1, -1);
-                scene.add(directionalLight2);
-                
-                // Load mesh data
+                scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+                const d1 = new THREE.DirectionalLight(0xffffff, 0.9);
+                d1.position.set(1.2, 1.5, 1);
+                scene.add(d1);
+                const d2 = new THREE.DirectionalLight(0xffffff, 0.4);
+                d2.position.set(-1, 0.5, -0.5);
+                scene.add(d2);
+                const d3 = new THREE.DirectionalLight(0xe8f4fc, 0.25);
+                d3.position.set(0, -1, 0.5);
+                scene.add(d3);
                 const vertices = {vertices_js};
                 const faces = {faces_js};
-                
-                // Create geometry
                 const geometry = new THREE.BufferGeometry();
                 const positions = [];
                 const indices = [];
-                
-                // Add vertices
-                for (let i = 0; i < vertices.length; i++) {{
-                    positions.push(vertices[i][0], vertices[i][1], vertices[i][2]);
-                }}
-                
-                // Add faces
-                for (let i = 0; i < faces.length; i++) {{
-                    indices.push(faces[i][0], faces[i][1], faces[i][2]);
-                }}
-                
+                for (let i = 0; i < vertices.length; i++) positions.push(vertices[i][0], vertices[i][1], vertices[i][2]);
+                for (let i = 0; i < faces.length; i++) indices.push(faces[i][0], faces[i][1], faces[i][2]);
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.setIndex(indices);
                 geometry.computeVertexNormals();
-                
-                // Create material
-                const material = new THREE.MeshStandardMaterial({{
-                    color: 0x4A90E2,
-                    transparent: true,
-                    opacity: 0.8,
-                    side: THREE.DoubleSide,
-                    metalness: 0.3,
-                    roughness: 0.4
-                }});
-                
-                // Create mesh
-                const mesh = new THREE.Mesh(geometry, material);
-                scene.add(mesh);
-                
-                // Add wireframe
-                const wireframe = new THREE.WireframeGeometry(geometry);
-                const wireframeLine = new THREE.LineSegments(wireframe, new THREE.LineBasicMaterial({{ color: 0x000000, opacity: 0.2, transparent: true }}));
-                scene.add(wireframeLine);
-                
-                // Controls
-                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                const material = new THREE.MeshStandardMaterial({{ color: 0xADD8E6, side: THREE.FrontSide, metalness: 0.12, roughness: 0.6, flatShading: true }});
+                const meshObj = new THREE.Mesh(geometry, material);
+                scene.add(meshObj);
+                const controls = new OrbitControls(camera, renderer.domElement);
                 controls.target.set(center[0], center[1], center[2]);
                 controls.update();
-                
-                // Animation loop
+                function animate() {{ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }}
+                animate();
+                window.addEventListener('resize', () => {{ camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }});
+            </script>
+        </body>
+        </html>
+        """
+    
+    def create_threejs_viewer_from_hatching_arrays(
+        self,
+        positions: Any,
+        vertex_colors_rgb: Any,
+        scalar_bar_min: Optional[float] = None,
+        scalar_bar_max: Optional[float] = None,
+        scalar_name: Optional[str] = None,
+        grid_data: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Create Three.js HTML from C++ hatching arrays (no Python color loop).
+        C++ provides positions (6*n) and per-vertex RGB (6*n). Only JSON-serialize and embed.
+        """
+        grid_data = grid_data or {}
+        n6 = len(positions) if hasattr(positions, "__len__") else 0
+        if n6 == 0 or n6 % 6 != 0:
+            return "<div style='padding: 20px; color: #666;'>No paths to display.</div>"
+        n = n6 // 6
+        rgb = vertex_colors_rgb
+        if rgb is None or (hasattr(rgb, "__len__") and len(rgb) < n6):
+            return "<div style='padding: 20px; color: #666;'>Missing vertex colors from C++.</div>"
+        pos_list = positions.tolist() if hasattr(positions, "tolist") else list(positions)
+        rgb_list = rgb.tolist() if hasattr(rgb, "tolist") else list(rgb)
+        x_min = y_min = z_min = float("inf")
+        x_max = y_max = z_max = float("-inf")
+        for i in range(0, n6, 3):
+            x, y, z = float(pos_list[i]), float(pos_list[i + 1]), float(pos_list[i + 2])
+            if x < x_min:
+                x_min = x
+            if x > x_max:
+                x_max = x
+            if y < y_min:
+                y_min = y
+            if y > y_max:
+                y_max = y
+            if z < z_min:
+                z_min = z
+            if z > z_max:
+                z_max = z
+        center = [(x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2]
+        max_dim = max(x_max - x_min, y_max - y_min, z_max - z_min, 1.0)
+        grid_id = grid_data.get("grid_id", "hatching")
+        title = "Hatching paths" if "hatch" in str(grid_id).lower() else "Line paths"
+        show_bar = (
+            scalar_name
+            and scalar_bar_min is not None
+            and scalar_bar_max is not None
+            and scalar_bar_min == scalar_bar_min  # not NaN
+            and scalar_bar_max == scalar_bar_max
+        )
+        if show_bar:
+            v_min_fmt = f"{scalar_bar_min:.4g}" if abs(scalar_bar_min) < 1e4 and abs(scalar_bar_min) >= 1e-3 or scalar_bar_min == 0 else f"{scalar_bar_min:.2e}"
+            v_max_fmt = f"{scalar_bar_max:.4g}" if abs(scalar_bar_max) < 1e4 and abs(scalar_bar_max) >= 1e-3 or scalar_bar_max == 0 else f"{scalar_bar_max:.2e}"
+            scalar_label_esc = (scalar_name or "value").replace("<", "&lt;").replace(">", "&gt;")
+            scalar_bar_html = f"""
+            <div id="scalar-bar">
+                <div class="scalar-bar-title">{scalar_label_esc}</div>
+                <div class="scalar-bar-strip"></div>
+                <div class="scalar-bar-labels">
+                    <span class="scalar-bar-max">{v_max_fmt}</span>
+                    <span class="scalar-bar-min">{v_min_fmt}</span>
+                </div>
+            </div>"""
+        else:
+            scalar_bar_html = ""
+        positions_js = json.dumps(pos_list)
+        colors_js = json.dumps(rgb_list)
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{title}</title>
+            <script type="importmap">
+            {{"imports": {{"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}}}
+            </script>
+            <style>
+                body {{ margin: 0; padding: 0; background: #eeeeee; overflow: hidden; }}
+                #container {{ width: 100%; height: 100vh; }}
+                #info {{ position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; z-index: 100; font-size: 12px; }}
+                #scalar-bar {{ position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 8px 10px; border-radius: 5px; z-index: 100; font-size: 11px; display: flex; flex-direction: column; align-items: center; }}
+                #scalar-bar .scalar-bar-title {{ font-weight: 600; margin-bottom: 4px; color: #333; }}
+                #scalar-bar .scalar-bar-strip {{ width: 14px; height: 120px; border-radius: 3px; background: linear-gradient(to top, #1f5994 0%, #7ac4ff 100%); }}
+                #scalar-bar .scalar-bar-labels {{ display: flex; flex-direction: column; align-items: flex-end; margin-top: 4px; color: #555; }}
+                #scalar-bar .scalar-bar-max {{ margin-bottom: 2px; }}
+                #scalar-bar .scalar-bar-min {{ }}
+            </style>
+        </head>
+        <body>
+            <div id="container"></div>
+            <div id="info">
+                <h3>{title}</h3>
+                <p>Paths: {n:,}</p>
+                <p><small>Drag to rotate, scroll to zoom, right-drag to pan</small></p>
+            </div>
+            {scalar_bar_html}
+            <script type="module">
+                import * as THREE from 'three';
+                import {{ OrbitControls }} from 'three/addons/controls/OrbitControls.js';
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xeeeeee);
+                const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1e7);
+                const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.getElementById('container').appendChild(renderer.domElement);
+                const center = {json.dumps(center)};
+                const maxDim = Math.max({max_dim}, 1e-6);
+                const distance = Math.max(maxDim * 2.2, maxDim + 10);
+                camera.position.set(center[0] + distance, center[1] + distance, center[2] + distance);
+                camera.lookAt(center[0], center[1], center[2]);
+                scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+                const d1 = new THREE.DirectionalLight(0xffffff, 1.0);
+                d1.position.set(1, 1, 1);
+                scene.add(d1);
+                const positions = {positions_js};
+                const vertexColorsRgb = {colors_js};
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertexColorsRgb, 3));
+                const material = new THREE.LineBasicMaterial({{ vertexColors: true }});
+                const lines = new THREE.LineSegments(geometry, material);
+                scene.add(lines);
+                const controls = new OrbitControls(camera, renderer.domElement);
+                controls.target.set(center[0], center[1], center[2]);
+                controls.update();
                 function animate() {{
                     requestAnimationFrame(animate);
                     controls.update();
                     renderer.render(scene, camera);
                 }}
                 animate();
-                
-                // Handle resize
                 window.addEventListener('resize', () => {{
                     camera.aspect = window.innerWidth / window.innerHeight;
                     camera.updateProjectionMatrix();
@@ -368,7 +456,139 @@ class PyVistaHTMLExporter:
         </body>
         </html>
         """
-    
+
+    def create_threejs_viewer_from_point_cloud(
+        self,
+        positions: Any,
+        vertex_colors_rgb: Any,
+        scalar_bar_min: Optional[float] = None,
+        scalar_bar_max: Optional[float] = None,
+        scalar_name: Optional[str] = None,
+        grid_data: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Create Three.js HTML from C++ point cloud arrays (laser_monitoring, ISPM).
+        C++ provides positions (3*n) and per-point RGB (3*n). Only JSON-serialize and embed.
+        """
+        grid_data = grid_data or {}
+        n3 = len(positions) if hasattr(positions, "__len__") else 0
+        if n3 == 0 or n3 % 3 != 0:
+            return "<div style='padding: 20px; color: #666;'>No points to display.</div>"
+        n = n3 // 3
+        rgb = vertex_colors_rgb
+        if rgb is None or (hasattr(rgb, "__len__") and len(rgb) < n3):
+            return "<div style='padding: 20px; color: #666;'>Missing vertex colors from C++.</div>"
+        pos_list = positions.tolist() if hasattr(positions, "tolist") else list(positions)
+        rgb_list = rgb.tolist() if hasattr(rgb, "tolist") else list(rgb)
+        x_min = y_min = z_min = float("inf")
+        x_max = y_max = z_max = float("-inf")
+        for i in range(0, n3, 3):
+            x, y, z = float(pos_list[i]), float(pos_list[i + 1]), float(pos_list[i + 2])
+            if x < x_min: x_min = x
+            if x > x_max: x_max = x
+            if y < y_min: y_min = y
+            if y > y_max: y_max = y
+            if z < z_min: z_min = z
+            if z > z_max: z_max = z
+        center = [(x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2]
+        max_dim = max(x_max - x_min, y_max - y_min, z_max - z_min, 1.0)
+        grid_id = grid_data.get("grid_id", "point_cloud")
+        title = grid_data.get("title", "Point cloud")
+        show_bar = (
+            scalar_name
+            and scalar_bar_min is not None
+            and scalar_bar_max is not None
+            and scalar_bar_min == scalar_bar_min
+            and scalar_bar_max == scalar_bar_max
+        )
+        if show_bar:
+            v_min_fmt = f"{scalar_bar_min:.4g}" if abs(scalar_bar_min) < 1e4 and abs(scalar_bar_min) >= 1e-3 or scalar_bar_min == 0 else f"{scalar_bar_min:.2e}"
+            v_max_fmt = f"{scalar_bar_max:.4g}" if abs(scalar_bar_max) < 1e4 and abs(scalar_bar_max) >= 1e-3 or scalar_bar_max == 0 else f"{scalar_bar_max:.2e}"
+            scalar_label_esc = (scalar_name or "value").replace("<", "&lt;").replace(">", "&gt;")
+            scalar_bar_html = f"""
+            <div id="scalar-bar">
+                <div class="scalar-bar-title">{scalar_label_esc}</div>
+                <div class="scalar-bar-strip"></div>
+                <div class="scalar-bar-labels">
+                    <span class="scalar-bar-max">{v_max_fmt}</span>
+                    <span class="scalar-bar-min">{v_min_fmt}</span>
+                </div>
+            </div>"""
+        else:
+            scalar_bar_html = ""
+        positions_js = json.dumps(pos_list)
+        colors_js = json.dumps(rgb_list)
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{title}</title>
+            <script type="importmap">
+            {{"imports": {{"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}}}
+            </script>
+            <style>
+                body {{ margin: 0; padding: 0; background: #eeeeee; overflow: hidden; }}
+                #container {{ width: 100%; height: 100vh; }}
+                #info {{ position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; z-index: 100; font-size: 12px; }}
+                #scalar-bar {{ position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 8px 10px; border-radius: 5px; z-index: 100; font-size: 11px; display: flex; flex-direction: column; align-items: center; }}
+                #scalar-bar .scalar-bar-title {{ font-weight: 600; margin-bottom: 4px; color: #333; }}
+                #scalar-bar .scalar-bar-strip {{ width: 14px; height: 120px; border-radius: 3px; background: linear-gradient(to top, #1f5994 0%, #7ac4ff 100%); }}
+                #scalar-bar .scalar-bar-labels {{ display: flex; flex-direction: column; align-items: flex-end; margin-top: 4px; color: #555; }}
+            </style>
+        </head>
+        <body>
+            <div id="container"></div>
+            <div id="info">
+                <h3>{title}</h3>
+                <p>Points: {n:,}</p>
+                <p><small>Drag to rotate, scroll to zoom, right-drag to pan</small></p>
+            </div>
+            {scalar_bar_html}
+            <script type="module">
+                import * as THREE from 'three';
+                import {{ OrbitControls }} from 'three/addons/controls/OrbitControls.js';
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xeeeeee);
+                const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1e7);
+                const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.getElementById('container').appendChild(renderer.domElement);
+                const center = {json.dumps(center)};
+                const maxDim = Math.max({max_dim}, 1e-6);
+                const distance = Math.max(maxDim * 2.2, maxDim + 10);
+                camera.position.set(center[0] + distance, center[1] + distance, center[2] + distance);
+                camera.lookAt(center[0], center[1], center[2]);
+                scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+                const d1 = new THREE.DirectionalLight(0xffffff, 1.0);
+                d1.position.set(1, 1, 1);
+                scene.add(d1);
+                const positions = {positions_js};
+                const vertexColorsRgb = {colors_js};
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertexColorsRgb, 3));
+                const material = new THREE.PointsMaterial({{ size: 1.5, vertexColors: true, sizeAttenuation: true }});
+                const points = new THREE.Points(geometry, material);
+                scene.add(points);
+                const controls = new OrbitControls(camera, renderer.domElement);
+                controls.target.set(center[0], center[1], center[2]);
+                controls.update();
+                function animate() {{
+                    requestAnimationFrame(animate);
+                    controls.update();
+                    renderer.render(scene, camera);
+                }}
+                animate();
+                window.addEventListener('resize', () => {{
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }});
+            </script>
+        </body>
+        </html>
+        """
+
     def wrap_image_in_html(
         self,
         image_data: str,

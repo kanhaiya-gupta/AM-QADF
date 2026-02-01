@@ -13,9 +13,6 @@ try:
         MockCollection,
         MockCursor,
         MockInsertResult,
-        MockSparkSession,
-        MockDataFrame,
-        MockSparkContext,
         MockUnifiedQueryClient,
         MockHatchingClient,
         MockLaserClient,
@@ -75,42 +72,6 @@ class TestMongoDBMocks:
         collection = client.get_collection("test_collection")
         assert collection is not None
         assert isinstance(collection, MockCollection)
-
-
-@pytest.mark.skipif(not MOCKS_AVAILABLE, reason="Mocks module not available")
-class TestSparkMocks:
-    """Tests for Spark mock classes."""
-
-    def test_mock_dataframe(self):
-        """Test MockDataFrame."""
-        data = [{"x": 1, "y": 2}, {"x": 3, "y": 4}]
-        df = MockDataFrame(data)
-
-        # Test select
-        df2 = df.select("x")
-        assert df2 is not None
-
-        # Test filter
-        df3 = df.filter("x > 2")
-        assert df3 is not None
-
-        # Test collect
-        collected = df.collect()
-        assert len(collected) == 2
-
-    def test_mock_spark_session(self):
-        """Test MockSparkSession."""
-        spark = MockSparkSession()
-
-        # Test createDataFrame
-        data = [{"x": 1}, {"x": 2}]
-        df = spark.createDataFrame(data)
-        assert df is not None
-        assert isinstance(df, MockDataFrame)
-
-        # Test read
-        reader = spark.read
-        assert reader is not None
 
 
 @pytest.mark.skipif(not MOCKS_AVAILABLE, reason="Mocks module not available")

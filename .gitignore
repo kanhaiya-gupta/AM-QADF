@@ -10,8 +10,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# lib/lib64 at repo root only (third_party installs are ignored below)
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -62,6 +63,7 @@ dmypy.json
 development.env
 production.env
 *.env
+.am_qadf_native_env
 
 # Docker
 docker-compose.override.yml
@@ -152,6 +154,15 @@ dist/
 build/
 *.egg-info/
 
+# C++ / CMake (if configured in repo root instead of build/)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.o
+*.obj
+*.a
+
 # IDEs
 .idea/
 .vscode/
@@ -208,8 +219,13 @@ test_report.html
 # But keep test reports directory structure
 !reports/.gitkeep
 
+# Generated output (OpenVDB grids, etc.)
+output/
+
 # Old/backup notebooks
 notebooks_old/
+# Optional: uncomment if notebooks_native/ is local-only
+# notebooks_native/
 
 # Frontend for local
 client/
@@ -228,3 +244,19 @@ generation/scripts/
 # Uncomment if you want to ignore auto-generated baselines:
 # tests/performance/regression/performance_baselines.json
 # tests/performance/regression/memory_baselines.json
+
+# Third-party dependencies
+# Keep source directories (can be git submodules) but ignore build artifacts and installs
+third_party/*/build/
+third_party/*/install/
+third_party_install.zip
+third_party_install/
+third_party/*/CMakeCache.txt
+third_party/*/CMakeFiles/
+third_party/*/cmake_install.cmake
+third_party/*/*.a
+third_party/*/*.so
+third_party/*/*.dylib
+third_party/*/*.dll
+# But keep the source directories themselves (for git submodules)
+!third_party/.gitkeep

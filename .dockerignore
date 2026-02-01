@@ -1,0 +1,51 @@
+# Reduce Docker build context: third_party is >4GB; keep context small.
+# Use pre-built third_party (zip) or mount repo at runtime; image does not need third_party in context.
+
+.git
+.github
+.actignore
+.flake8
+.pytest_cache
+.mypy_cache
+__pycache__
+*.pyc
+.coverage
+htmlcov/
+
+# Heavy dirs (build context must stay manageable; need >6GB free if including third_party)
+third_party/
+build/
+boost_build/
+boost_1_82_install/
+libiconv_build/
+libiconv_install/
+third_party_install/
+third_party_install.zip
+
+# Docs and extras (not needed in image for run)
+docs/
+*.md
+!README.md
+demo/
+notebooks/
+notebooks_native/
+tests/
+
+# Docker and CI (avoid recursion)
+docker/
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Env and secrets (compose injects env at run)
+.env
+.env.*
+*.env
+secrets/
+
+# Data and caches
+data/
+logs/
+*.log
+*.sql
+*.dump

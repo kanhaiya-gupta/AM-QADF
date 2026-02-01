@@ -19,7 +19,7 @@ from pathlib import Path
 
 # Try relative imports first (when used as package)
 try:
-    from ..voxelization.voxel_grid import VoxelGrid
+    from ..voxelization.uniform_resolution import VoxelGrid
     from ..voxelization.adaptive_resolution import (
         AdaptiveResolutionGrid,
         SpatialResolutionMap,
@@ -30,21 +30,21 @@ try:
         interpolate_hatching_paths,
     )
     from ..query.unified_query_client import UnifiedQueryClient
-    from ..voxelization.transformer import CoordinateSystemTransformer
+    from ..coordinate_systems import CoordinateSystemTransformer
 except (ImportError, ValueError):
     # Fallback for direct imports (when loaded from notebook)
     current_file = Path(__file__).resolve()
     parent_dir = current_file.parent.parent
 
-    # Import voxelization components - need to load voxel_grid first
+    # Import voxelization components - need to load uniform_resolution first
     voxel_dir = parent_dir / "voxelization"
-    if (voxel_dir / "voxel_grid.py").exists():
+    if (voxel_dir / "uniform_resolution.py").exists():
         import importlib.util
 
-        # Load voxel_grid first and register it
-        spec = importlib.util.spec_from_file_location("voxelization.voxel_grid", voxel_dir / "voxel_grid.py")
+        # Load uniform_resolution first and register it
+        spec = importlib.util.spec_from_file_location("voxelization.uniform_resolution", voxel_dir / "uniform_resolution.py")
         voxel_module = importlib.util.module_from_spec(spec)
-        sys.modules["voxelization.voxel_grid"] = voxel_module  # type: ignore[assignment]
+        sys.modules["voxelization.uniform_resolution"] = voxel_module  # type: ignore[assignment]
         spec.loader.exec_module(voxel_module)
         VoxelGrid = voxel_module.VoxelGrid
 
@@ -88,16 +88,18 @@ except (ImportError, ValueError):
     else:
         raise ImportError("Could not import UnifiedQueryClient")
 
-    # Import coordinate transformer
+    # Import coordinate transformer (required, no fallback)
     coord_dir = parent_dir / "coordinate_systems"
-    if (coord_dir / "transformer.py").exists():
-        spec = importlib.util.spec_from_file_location("coordinate_systems.transformer", coord_dir / "transformer.py")
-        coord_module = importlib.util.module_from_spec(spec)
-        sys.modules["coordinate_systems.transformer"] = coord_module  # type: ignore[assignment]
-        spec.loader.exec_module(coord_module)
-        CoordinateSystemTransformer = coord_module.CoordinateSystemTransformer
-    else:
-        CoordinateSystemTransformer = None
+    if not (coord_dir / "transformer.py").exists():
+        raise ImportError(
+            "Could not find coordinate_systems.transformer module. "
+            "C++ bindings are required."
+        )
+    spec = importlib.util.spec_from_file_location("coordinate_systems.transformer", coord_dir / "transformer.py")
+    coord_module = importlib.util.module_from_spec(spec)
+    sys.modules["coordinate_systems.transformer"] = coord_module  # type: ignore[assignment]
+    spec.loader.exec_module(coord_module)
+    CoordinateSystemTransformer = coord_module.CoordinateSystemTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -131,12 +133,13 @@ class VoxelDomainClient:
         self.adaptive = adaptive
         self.target_coordinate_system = target_coordinate_system
 
-        # Initialize coordinate transformer if available
-        if CoordinateSystemTransformer:
-            self.coord_transformer = CoordinateSystemTransformer()
-        else:
-            self.coord_transformer = None
-            logger.warning("CoordinateSystemTransformer not available. Coordinate transformations may be limited.")
+        # Initialize coordinate transformer (required, no fallback)
+        if not CoordinateSystemTransformer:
+            raise ImportError(
+                "C++ bindings not available. "
+                "Please build am_qadf_native with pybind11 bindings."
+            )
+        self.coord_transformer = CoordinateSystemTransformer()
 
     def create_voxel_grid(
         self,
@@ -270,9 +273,6 @@ class VoxelDomainClient:
         temporal_query: Optional[Any] = None,
         interpolation_method: str = "nearest",
         use_parallel_sources: bool = False,
-        use_parallel_interpolation: bool = False,
-        use_spark: bool = False,
-        spark_session: Optional[Any] = None,
         max_workers: Optional[int] = None,
         **interpolation_kwargs,
     ) -> Union[VoxelGrid, AdaptiveResolutionGrid]:
@@ -288,10 +288,6 @@ class VoxelDomainClient:
             temporal_query: Optional temporal query to filter data
             interpolation_method: Interpolation method ('nearest', 'linear', 'idw', 'gaussian_kde')
             use_parallel_sources: Whether to process sources in parallel (default: False)
-            use_parallel_interpolation: Whether to use parallel interpolation (default: False)
-            use_spark: Whether to use Spark for distributed processing (default: False)
-            spark_session: SparkSession instance (required if use_spark=True)
-            max_workers: Maximum number of worker threads/processes
             **interpolation_kwargs: Additional arguments for interpolation method
 
         Returns:
@@ -305,10 +301,6 @@ class VoxelDomainClient:
         # Store interpolation kwargs for use in mapping methods
         self._interpolation_kwargs = {
             "method": interpolation_method,
-            "use_parallel": use_parallel_interpolation,
-            "use_spark": use_spark,
-            "spark_session": spark_session,
-            "max_workers": max_workers,
             **interpolation_kwargs,
         }
 
@@ -328,10 +320,6 @@ class VoxelDomainClient:
                         spatial_query,
                         temporal_query,
                         interpolation_method,
-                        use_parallel_interpolation,
-                        use_spark,
-                        spark_session,
-                        max_workers,
                         **interpolation_kwargs,
                     )
                     futures[future] = source
@@ -364,10 +352,6 @@ class VoxelDomainClient:
                         spatial_query,
                         temporal_query,
                         interpolation_method,
-                        use_parallel_interpolation,
-                        use_spark,
-                        spark_session,
-                        max_workers,
                         **interpolation_kwargs,
                     )
                     print("✅")
@@ -396,11 +380,7 @@ class VoxelDomainClient:
         voxel_grid: Union[VoxelGrid, AdaptiveResolutionGrid],
         spatial_query: Optional[Any],
         temporal_query: Optional[Any],
-        interpolation_method: str,
-        use_parallel_interpolation: bool,
-        use_spark: bool,
-        spark_session: Optional[Any],
-        max_workers: Optional[int],
+            interpolation_method: str,
         **interpolation_kwargs,
     ):
         """Map data from a single source (helper for parallel processing)."""
@@ -411,10 +391,6 @@ class VoxelDomainClient:
                 spatial_query,
                 temporal_query,
                 interpolation_method,
-                use_parallel_interpolation,
-                use_spark,
-                spark_session,
-                max_workers,
                 **interpolation_kwargs,
             )
         elif source == "laser":
@@ -424,10 +400,6 @@ class VoxelDomainClient:
                 spatial_query,
                 temporal_query,
                 interpolation_method,
-                use_parallel_interpolation,
-                use_spark,
-                spark_session,
-                max_workers,
                 **interpolation_kwargs,
             )
         elif source == "ct":
@@ -436,10 +408,6 @@ class VoxelDomainClient:
                 voxel_grid,
                 spatial_query,
                 interpolation_method,
-                use_parallel_interpolation,
-                use_spark,
-                spark_session,
-                max_workers,
                 **interpolation_kwargs,
             )
         elif source == "ispm":
@@ -449,10 +417,6 @@ class VoxelDomainClient:
                 spatial_query,
                 temporal_query,
                 interpolation_method,
-                use_parallel_interpolation,
-                use_spark,
-                spark_session,
-                max_workers,
                 **interpolation_kwargs,
             )
         else:
@@ -465,10 +429,6 @@ class VoxelDomainClient:
         spatial_query: Optional[Any],
         temporal_query: Optional[Any],
         interpolation_method: str = "nearest",
-        use_parallel_interpolation: bool = False,
-        use_spark: bool = False,
-        spark_session: Optional[Any] = None,
-        max_workers: Optional[int] = None,
         **interpolation_kwargs,
     ):
         """Map hatching path data to voxel grid."""
@@ -516,10 +476,6 @@ class VoxelDomainClient:
                     all_signals,
                     voxel_grid,  # type: ignore[arg-type]
                     interpolation_method=interpolation_method,
-                    use_parallel=use_parallel_interpolation,
-                    use_spark=use_spark,
-                    spark_session=spark_session,
-                    max_workers=max_workers,
                     **interpolation_kwargs,
                 )
                 logger.info(f"Mapped {len(all_paths)} hatching paths to voxel grid")
@@ -533,10 +489,6 @@ class VoxelDomainClient:
         spatial_query: Optional[Any],
         temporal_query: Optional[Any],
         interpolation_method: str = "nearest",
-        use_parallel_interpolation: bool = False,
-        use_spark: bool = False,
-        spark_session: Optional[Any] = None,
-        max_workers: Optional[int] = None,
         **interpolation_kwargs,
     ):
         """Map laser parameter data to voxel grid."""
@@ -593,10 +545,6 @@ class VoxelDomainClient:
                     signals,
                     voxel_grid,  # type: ignore[arg-type]
                     method=interpolation_method,
-                    use_parallel=use_parallel_interpolation,
-                    use_spark=use_spark,
-                    spark_session=spark_session,
-                    max_workers=max_workers,
                     **interpolation_kwargs,
                 )
                 logger.info(f"Mapped {len(points)} laser parameter points to voxel grid")
@@ -609,10 +557,6 @@ class VoxelDomainClient:
         voxel_grid: Union[VoxelGrid, AdaptiveResolutionGrid],
         spatial_query: Optional[Any],
         interpolation_method: str = "nearest",
-        use_parallel_interpolation: bool = False,
-        use_spark: bool = False,
-        spark_session: Optional[Any] = None,
-        max_workers: Optional[int] = None,
         **interpolation_kwargs,
     ):
         """Map CT scan data to voxel grid."""
@@ -669,10 +613,6 @@ class VoxelDomainClient:
                     signals,
                     voxel_grid,  # type: ignore[arg-type]
                     method=interpolation_method,
-                    use_parallel=use_parallel_interpolation,
-                    use_spark=use_spark,
-                    spark_session=spark_session,
-                    max_workers=max_workers,
                     **interpolation_kwargs,
                 )
                 logger.info(f"Mapped {len(points)} CT scan points to voxel grid")
@@ -686,10 +626,6 @@ class VoxelDomainClient:
         spatial_query: Optional[Any],
         temporal_query: Optional[Any],
         interpolation_method: str = "nearest",
-        use_parallel_interpolation: bool = False,
-        use_spark: bool = False,
-        spark_session: Optional[Any] = None,
-        max_workers: Optional[int] = None,
         **interpolation_kwargs,
     ):
         """Map ISPM monitoring data to voxel grid."""
@@ -746,10 +682,6 @@ class VoxelDomainClient:
                     signals,
                     voxel_grid,  # type: ignore[arg-type]
                     method=interpolation_method,
-                    use_parallel=use_parallel_interpolation,
-                    use_spark=use_spark,
-                    spark_session=spark_session,
-                    max_workers=max_workers,
                     **interpolation_kwargs,
                 )
                 logger.info(f"Mapped {len(points)} ISPM monitoring points to voxel grid")

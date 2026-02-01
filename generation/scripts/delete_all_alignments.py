@@ -31,8 +31,9 @@ import re
 try:
     from src.infrastructure.config import MongoDBConfig
     from src.infrastructure.database import MongoDBClient
-    from am_qadf.synchronization import AlignmentStorage
-    from am_qadf.voxel_domain import VoxelGridStorage
+    # Note: AlignmentStorage removed - alignment results now stored in OpenVDB format with grid metadata
+    # Use voxel_storage to access aligned grids instead
+    from am_qadf.voxel_domain.voxel_storage import VoxelGridStorage
     
     def get_mongodb_config():
         """Get MongoDB config from environment."""
@@ -117,7 +118,8 @@ def delete_all_alignments(execute: bool = False, force: bool = False, delete_dup
             print("❌ Failed to connect to MongoDB")
             return
         
-        alignment_storage = AlignmentStorage(mongo_client=mongo_client)
+        # Note: AlignmentStorage removed - alignment results now stored in OpenVDB format with grid metadata
+        # This script is deprecated - use voxel_storage to manage aligned grids instead
         voxel_storage = VoxelGridStorage(mongo_client=mongo_client)
         print(f"✅ Connected to MongoDB: {config.database}\n")
     except Exception as e:
@@ -126,10 +128,12 @@ def delete_all_alignments(execute: bool = False, force: bool = False, delete_dup
         traceback.print_exc()
         return
     
-    # Get all alignments
-    print("📋 Finding all alignments...")
-    print("   (These are old UUID-based alignment records that don't follow the naming convention)")
-    alignments = alignment_storage.list_alignments(limit=10000)
+    # Note: AlignmentStorage removed - alignment results now stored in OpenVDB format
+    # This script is deprecated - aligned grids are stored as regular voxel grids with alignment metadata
+    print("📋 Note: AlignmentStorage has been removed.")
+    print("   Alignment results are now stored in OpenVDB format with grid metadata.")
+    print("   Use voxel_storage to manage aligned grids instead.")
+    alignments = []  # No longer using separate alignment storage
     
     if not alignments:
         print("✅ No alignments found in database. Nothing to delete.")
@@ -262,13 +266,10 @@ def delete_all_alignments(execute: bool = False, force: bool = False, delete_dup
                             except Exception as e:
                                 print(f"   ⚠️  Warning: Failed to delete GridFS file for {source_name}/{signal_name}: {e}")
             
-            # Delete alignment document
-            if alignment_storage.delete_alignment(align_id):
-                deleted_count += 1
-                print(f"   ✅ Deleted: {model_name} ({align_id[:36]}...)")
-            else:
-                failed_count += 1
-                print(f"   ❌ Failed to delete: {align_id[:36]}...")
+            # Note: AlignmentStorage removed - alignment documents no longer exist separately
+            # Aligned data is stored as OpenVDB grids with metadata
+            # Skip deletion of alignment documents (they don't exist anymore)
+            print(f"   ⚠️  Skipped: {model_name} ({align_id[:36]}...) - AlignmentStorage removed")
                 
         except Exception as e:
             failed_count += 1

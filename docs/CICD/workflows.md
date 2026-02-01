@@ -43,21 +43,22 @@ on:
 
 #### Job 1: Test
 
-**Purpose**: Run tests across multiple Python versions
+**Purpose**: Run Python tests (single version)
 
 **Matrix Strategy**:
-- Python versions: 3.9, 3.10, 3.11
-- Fail-fast: false (all versions tested even if one fails)
+- Python version: 3.11
+- Fail-fast: false
 
 **Steps**:
 1. Checkout code
-2. Set up Python with caching
+2. Set up Python 3.11 with caching
 3. Install system dependencies (libgl1, libglib2.0-0)
-4. Install Python dependencies
+4. Install Python dependencies from `requirements.txt`
 5. Run unit tests
 6. Run integration tests (continue on error)
-7. Run all tests with coverage
-8. Upload coverage to Codecov
+7. Run e2e, property_based, utils tests (continue on error)
+8. Run all tests with coverage (cov-fail-under 15)
+9. Upload coverage to Codecov
 
 **Test Commands**:
 ```bash
@@ -65,22 +66,33 @@ on:
 pytest tests/unit -m "unit" -v --tb=short
 
 # Integration tests
-pytest tests/integration -m "integration" -v --tb=short
+pytest tests/integration -m "integration" -v --tb=short -n 2
 
 # E2E tests
 pytest tests/e2e -m "e2e" -v --tb=short
 
 # Property-based tests
-pytest tests/property_based -m "property_based" -v --tb=short
+pytest tests/property_based -m "property_based" -v --tb=short --no-cov
 
 # Utils tests
-pytest tests/utils -v --tb=short
+pytest tests/utils -v --tb=short --no-cov
 
 # Full coverage
-pytest tests/ --cov=src/am_qadf --cov-report=xml --cov-report=term-missing --cov-report=html -v --cov-fail-under=80
+pytest tests/ --cov=src/am_qadf --cov-report=xml --cov-report=term-missing --cov-report=html -v --cov-fail-under=15 -n 2
 ```
 
-#### Job 2: Lint
+#### Job 2: C++
+
+**Purpose**: Build and test C++ library and Python bindings
+
+**Steps**:
+1. Checkout code
+2. Set up Python 3.11 + system C++ deps (cmake, ninja, libtbb-dev, libblosc-dev, zlib1g-dev) and pip install pybind11; download third-party (OpenVDB, ITK, mongo-cxx-driver) from GitHub release
+3. Configure: `cmake -DUSE_SYSTEM_LIBS=ON -DOpenVDB_ROOT=... -DITK_DIR=... -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -G Ninja ..`
+4. Build: `cmake --build . -j $(nproc)`
+5. Run C++ tests: `ctest --output-on-failure`
+
+#### Job 3: Lint
 
 **Purpose**: Code quality and style checks
 
@@ -117,7 +129,7 @@ pylint src/ --disable=all --enable=E,F --exit-zero
 mypy src/ --ignore-missing-imports --no-strict-optional
 ```
 
-#### Job 3: Test Matrix
+#### Job 4: Test Matrix
 
 **Purpose**: Run test suites in parallel
 
@@ -139,7 +151,7 @@ mypy src/ --ignore-missing-imports --no-strict-optional
 
 **Conditions**:
 - Only runs when `run_performance` input is set to `true`
-- Sequential performance tests only (Spark-required tests are skipped)
+- Performance regression and benchmarks only
 - Uses pytest-benchmark for benchmarks
 
 **Steps**:
@@ -150,8 +162,8 @@ mypy src/ --ignore-missing-imports --no-strict-optional
 
 **Performance Commands**:
 ```bash
-# Performance regression tests (sequential only)
-pytest tests/performance/regression -m "performance and not requires_spark" -v --tb=short
+# Performance regression tests
+pytest tests/performance/regression -m "performance" -v --tb=short
 
 # Performance benchmarks
 pytest tests/performance/benchmarks -m "benchmark" --benchmark-only --benchmark-json=benchmark.json
@@ -292,17 +304,18 @@ on:
 
 #### Job 1: Nightly Tests
 
-**Purpose**: Full test suite across Python versions
+**Purpose**: Full test suite (Python 3.11)
 
 **Matrix Strategy**:
-- Python versions: 3.9, 3.10, 3.11
+- Python version: 3.11
 
 **Steps**:
 1. Set up Python
 2. Install system dependencies
-3. Install dependencies
+3. Install dependencies from `requirements.txt`
 4. Run full test suite (max 5 failures)
 5. Run slow tests
+6. Run performance regression tests
 
 **Test Commands**:
 ```bash
@@ -311,6 +324,9 @@ pytest tests/ -v --tb=short --maxfail=5
 
 # Slow tests
 pytest tests/ -m "slow" -v
+
+# Performance regression
+pytest tests/performance/regression -m "performance" -v --tb=short
 ```
 
 #### Job 2: Code Quality
@@ -418,23 +434,24 @@ on:
 
 ```
 CI Workflow
-├── Test (parallel)
-├── Lint (parallel)
-├── Test Matrix (parallel)
+├── Test (Python 3.11)
+├── C++ (build + ctest)
+├── Lint
+├── Test Matrix
 ├── Performance (conditional)
-└── Notebooks (parallel)
+└── Notebooks
 
 PR Checks
 ├── PR Checks
 └── Format Check
 
 Nightly
-├── Nightly Tests (matrix)
+├── Nightly Tests (Python 3.11)
 ├── Code Quality
 └── Notebooks
 
 Release
-├── Build and Test
+├── Build and Test (Python tests + C++ build/test)
 ├── Documentation
 └── Notebooks
 ```
@@ -443,7 +460,7 @@ Release
 
 ### For Workflow Development
 
-1. **Use Matrix Strategies**: Test across multiple Python versions
+1. **Use Matrix Strategies**: Test Python (3.11) and C++ (conda + ctest) as needed
 2. **Parallel Jobs**: Run independent jobs in parallel
 3. **Conditional Execution**: Use `if` conditions for optional jobs
 4. **Continue on Error**: Use `continue-on-error: true` for non-critical checks

@@ -452,7 +452,6 @@ class GridNaming:
         # Final grid name: {source}_{grid_type}_{resolution}_aligned_{mode?}_{timestamp}
         return f"{base_without_timestamp}_{timestamp}"
 
-
     @staticmethod
     def generate_corrected_grid_name(
         source: str,

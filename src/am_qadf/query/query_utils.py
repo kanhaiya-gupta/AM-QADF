@@ -325,3 +325,144 @@ def aggregate_by_layer(
         results[doc["_id"]] = doc["value"]
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Transformation summary formatting (for query_and_transform_points)
+# ---------------------------------------------------------------------------
+
+
+def format_transformation_summary_table(
+    source_types: List[str],
+    reference_source: str,
+    transformed_points: Dict[str, Any],
+    validation_results: Dict[str, Any],
+    transformations: Dict[str, Dict[str, Any]],
+) -> List[str]:
+    """Build first table: Source | Points | max_error | tolerance | Status."""
+    col_source = 16
+    col_points = 8
+    col_max_error = 12
+    col_tolerance = 12
+    header = (
+        "  %-*s %*s %*s %*s %s"
+        % (col_source, "Source", col_points, "Points", col_max_error, "max_error", col_tolerance, "tolerance", "Status")
+    )
+    sep = "  " + "-" * (col_source + 1 + col_points + 1 + col_max_error + 1 + col_tolerance + 1 + 10)
+    rows = []
+    for st in source_types:
+        n = transformed_points[st].shape[0] if st in transformed_points and hasattr(transformed_points[st], "shape") else 0
+        if st == reference_source:
+            rows.append("  %-*s %*d %*s %*s %s" % (col_source, st, col_points, n, col_max_error, "—", col_tolerance, "—", "reference"))
+        else:
+            vr = validation_results.get(st)
+            tol = transformations.get(st, {}).get("validation_tolerance")
+            max_err = getattr(vr, "max_error", None) if vr is not None else None
+            valid = getattr(vr, "is_valid", True) if vr is not None else True
+            status = "ok" if valid else "FAIL"
+            if max_err is not None and tol is not None:
+                max_s = ("%.6g" % max_err).rjust(col_max_error)
+                tol_s = ("%.6g" % tol).rjust(col_tolerance)
+                rows.append("  %-*s %*d %*s %*s %s" % (col_source, st, col_points, n, col_max_error, max_s, col_tolerance, tol_s, status))
+            else:
+                rows.append("  %-*s %*d %*s %*s %s" % (col_source, st, col_points, n, col_max_error, "—", col_tolerance, "—", status))
+    return [header, sep] + rows
+
+
+def format_transformation_per_source_table(
+    source_types: List[str],
+    reference_source: str,
+    transformations: Dict[str, Dict[str, Any]],
+) -> List[str]:
+    """Build second table: Source | Scale | tx | ty | tz | rot_x° | rot_y° | rot_z° (from C++ decomposition)."""
+    col_source = 16
+    col_s = 6
+    col_t = 10
+    col_r = 9
+    h2 = "  %-*s %*s %*s %*s %*s %*s %*s %*s" % (
+        col_source, "Source", col_s, "Scale", col_t, "tx", col_t, "ty", col_t, "tz",
+        col_r, "rot_x°", col_r, "rot_y°", col_r, "rot_z°",
+    )
+    sep2 = "  " + "-" * (col_source + 1 + col_s + 1 + col_t * 3 + 1 + col_r * 3)
+    rows = []
+    for st in source_types:
+        if st == reference_source:
+            rows.append("  %-*s %*s %*s %*s %*s %*s %*s %*s" % (
+                col_source, st, col_s, "1", col_t, "0", col_t, "0", col_t, "0",
+                col_r, "0", col_r, "0", col_r, "0",
+            ))
+        else:
+            tr = transformations.get(st, {})
+            s = tr.get("scale")
+            t = tr.get("translation")
+            r = tr.get("rotation_euler_deg")
+            if s is not None and t is not None and r is not None:
+                rows.append("  %-*s %*.4g %*.4g %*.4g %*.4g %*.2f %*.2f %*.2f" % (
+                    col_source, st, col_s, s, col_t, t[0], col_t, t[1], col_t, t[2],
+                    col_r, r[0], col_r, r[1], col_r, r[2],
+                ))
+            else:
+                rows.append("  %-*s %*s %*s %*s %*s %*s %*s %*s" % (
+                    col_source, st, col_s, "—", col_t, "—", col_t, "—", col_t, "—",
+                    col_r, "—", col_r, "—", col_r, "—",
+                ))
+    return [h2, sep2] + rows
+
+
+def format_unified_bounds_line(unified_bounds: Any) -> List[str]:
+    """Format unified bounds as one or two lines."""
+    try:
+        ub = unified_bounds
+        if hasattr(ub, "min_x"):
+            return [
+                "Unified bounds: [%.4g, %.4g, %.4g] to [%.4g, %.4g, %.4g]"
+                % (
+                    getattr(ub, "min_x", 0), getattr(ub, "min_y", 0), getattr(ub, "min_z", 0),
+                    getattr(ub, "max_x", 0), getattr(ub, "max_y", 0), getattr(ub, "max_z", 0),
+                )
+            ]
+        return ["Unified bounds: %s" % ub]
+    except Exception:  # noqa: BLE001
+        return ["Unified bounds: %s" % unified_bounds]
+
+
+def format_query_and_transform_summary(
+    source_types: List[str],
+    reference_source: str,
+    transformed_points: Dict[str, Any],
+    validation_results: Dict[str, Any],
+    transformations: Dict[str, Dict[str, Any]],
+    unified_bounds: Any,
+    *,
+    adaptive_tolerance_pct: float = 0.01,
+) -> List[str]:
+    """
+    Build full log summary for query_and_transform_points: pass/fail line, two tables, unified bounds.
+    """
+    failed = [
+        st for st in source_types
+        if st != reference_source and st in validation_results
+        and not getattr(validation_results[st], "is_valid", True)
+    ]
+    if failed:
+        first_line = "query_and_transform_points: %d source(s) failed validation: %s. Continuing with transform." % (len(failed), failed)
+    else:
+        first_line = "query_and_transform_points: Transformation validation passed for all sources."
+    lines = [first_line, "Transformation summary (sources: %s)" % source_types]
+    lines.extend(format_transformation_summary_table(
+        source_types, reference_source, transformed_points, validation_results, transformations
+    ))
+    pct = adaptive_tolerance_pct * 100.0
+    lines.append("")
+    lines.append(
+        "  Status: ok = max_error < tolerance. "
+        "Tolerance = max(validation_tolerance, %.4g%% of ref bbox max extent, 1e-3). "
+        "Change via query_and_transform_points(..., validation_tolerance=..., adaptive_tolerance_pct=...)."
+        % (pct,)
+    )
+    lines.append("")
+    lines.append("Transformation per source (scale, translation, rotation from C++):")
+    lines.extend(format_transformation_per_source_table(source_types, reference_source, transformations))
+    lines.append("")
+    lines.extend(format_unified_bounds_line(unified_bounds))
+    return lines

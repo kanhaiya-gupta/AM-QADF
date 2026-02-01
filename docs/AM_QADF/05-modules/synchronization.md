@@ -34,13 +34,21 @@ Different data sources in additive manufacturing use **different coordinate syst
 ### 2. Spatial Transformation 📍
 **Purpose**: Transform points from different coordinate systems to a common reference frame
 
-**Process**:
-- Define coordinate system transformations (translation, rotation, scale)
-- Create 4x4 transformation matrices
-- Apply transformations to point coordinates from each source
-- Transform: `point_new = rotation × scale × point_old + translation`
+**Current approach (bbox-corner correspondence)**:
+- Sources are in different coordinate systems but share the **same bounding-box extent** (same physical box, different pose/scale).
+- Transformation is computed from **8 bbox corners only** (no point-to-point correspondences).
+- The pipeline tries **24 rotational permutations** of corner correspondence (cube symmetries) and **56 triplets** of corners per permutation; fits a similarity transform (Kabsch + Umeyama) on 3 corners and validates on all 8; the best fit (smallest max error) is selected.
+- By default, bboxes are computed from **full data** (`use_full_extent_for_transform=True`); optional `bbox`/`layer_range` only filter which points are returned/saved.
+- Validation uses reference corners **reordered by the best permutation** so pass/fail matches the fit; tolerance is **1% of bbox extent** (adaptive).
 
-**Result**: All points are in the same coordinate system (typically build platform coordinates)
+**Process**:
+- Query points per source (full extent for bbox when filters are used)
+- Compute bounding box per source; get 8 corners in fixed order
+- Compute 4×4 similarity transform from bbox corner correspondence (C++: `TransformationComputer.computeTransformationFromBboxCorners`)
+- Validate transform (C++: `TransformationValidator.validateWithMatrix` with best_ref_corners)
+- Apply transform to all points; compute unified bounds
+
+**Result**: All points are in the same coordinate system (typically build platform / hatching coordinates). See [SPATIAL_ALIGNMENT_DESIGN.md](../../Infrastructure/SPATIAL_ALIGNMENT_DESIGN.md) for full design.
 
 ### 3. Data Structure Preparation 🔄
 **Purpose**: Organize aligned data for signal mapping and fusion
@@ -215,6 +223,14 @@ flowchart TB
     class Use end
 ```
 
+## Spatial Alignment API (Python)
+
+The main entry point for querying and transforming multi-source points is:
+
+- **`UnifiedQueryClient.query_and_transform_points(model_id, source_types, reference_source="hatching", layer_range=None, bbox=None, use_full_extent_for_transform=True, validation_tolerance=1e-6, ...)`**
+
+Returns a dict with `transformed_points`, `signals`, `unified_bounds`, `transformations` (per-source matrix, quality, fit_errors, best_fit, correspondence_validation), `validation_results`, and `raw_results`. See [Synchronization API Reference](../06-api-reference/synchronization-api.md) for full parameters and return structure.
+
 ## Key Components
 
 ### Temporal Alignment
@@ -223,11 +239,12 @@ flowchart TB
 - **LayerTimeMapper**: Maps between time and layer numbers
 - **TemporalAligner**: Aligns timestamps from different sources
 
-### Spatial Transformation
+### Spatial Transformation (C++ / am_qadf_native)
 
-- **TransformationMatrix**: 4x4 transformation matrix (rotation, translation, scale)
-- **SpatialTransformer**: Applies transformations to points
-- **TransformationManager**: Manages multiple coordinate system transformations
+- **UnifiedBoundsComputer**, **BoundingBox::corners()**: Compute bbox from points; 8 corners in fixed order
+- **TransformationComputer.computeTransformationFromBboxCorners**: 24×56 fits; returns best transform, quality, optional best_ref_corners and per-fit errors
+- **TransformationValidator.validateWithMatrix**: Validate using best_ref_corners; 1% adaptive tolerance; isValid true when within tolerance
+- **PointTransformer**: Apply 4×4 transform to point sets
 
 ### Data Fusion
 

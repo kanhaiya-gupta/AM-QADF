@@ -12,14 +12,14 @@ from unittest.mock import Mock, MagicMock
 try:
     from am_qadf.query.unified_query_client import UnifiedQueryClient
     from am_qadf.voxel_domain.voxel_domain_client import VoxelDomainClient
-    from am_qadf.voxelization.voxel_grid import VoxelGrid
+    from am_qadf.voxelization.uniform_resolution import VoxelGrid
     from am_qadf.fusion.voxel_fusion import VoxelFusion
     from am_qadf.fusion.fusion_methods import (
         WeightedAverageFusion,
         MedianFusion,
         QualityBasedFusion,
     )
-    from am_qadf.synchronization.data_fusion import DataFusion, FusionStrategy
+    from am_qadf.fusion.data_fusion import DataFusion, FusionStrategy
 
     FUSION_AVAILABLE = True
 except ImportError:
@@ -141,18 +141,8 @@ class TestMultiSourceFusion:
             )
             grids[source] = mapped_grid
 
-        # Step 3: Extract signals from all grids
-        all_signals = {}
-        for source, grid in grids.items():
-            for signal_name in grid.available_signals:
-                signal_values = []
-                for voxel in grid.voxels.values():
-                    if signal_name in voxel.signals:
-                        signal_values.append(voxel.signals[signal_name])
-                if signal_values:
-                    all_signals[f"{source}_{signal_name}"] = np.array(signal_values)
+        # Step 3: Fuse grids using VoxelFusion (no need to extract signals; fuse_grids takes grids)
 
-        # Step 4: Fuse grids using VoxelFusion
         fusion_client = VoxelFusion()
 
         # Ensure grids are finalized
@@ -161,7 +151,7 @@ class TestMultiSourceFusion:
 
         if len(grids) >= 2:
             grid_list = list(grids.values())
-            fused_result = fusion_client.fuse_voxel_grids(grids=grid_list, method="weighted_average")
+            fused_result = fusion_client.fuse_grids(grids=grid_list, strategy="weighted_average")
 
             # Assertions
             assert fused_result is not None
@@ -194,35 +184,20 @@ class TestMultiSourceFusion:
             interpolation_method="nearest",
         )
 
-        # Step 2: Extract signals with quality scores
-        signals = {}
-        quality_scores = {}
-
-        # Laser signals (high quality)
-        if "laser_power" in laser_grid.available_signals:
-            laser_values = [v.signals.get("laser_power", 0) for v in laser_grid.voxels.values() if "laser_power" in v.signals]
-            if laser_values:
-                signals["laser_power"] = np.array(laser_values)
-                quality_scores["laser_power"] = 0.9  # High quality
-
-        # CT signals (medium quality)
-        if "density" in ct_grid.available_signals:
-            ct_values = [v.signals.get("density", 0) for v in ct_grid.voxels.values() if "density" in v.signals]
-            if ct_values:
-                signals["density"] = np.array(ct_values)
-                quality_scores["density"] = 0.7  # Medium quality
-
-        # Step 3: Fuse with quality-based method
+        # Step 2: Fuse with weighted average (quality via weights)
         laser_grid.finalize()
         ct_grid.finalize()
 
-        if len(signals) >= 2:
-            fusion_client = VoxelFusion(use_quality_scores=True)
+        fusion_client = VoxelFusion()
+        # Use weights to reflect quality: laser 0.9, ct 0.7 (normalized)
+        weights = [0.9 / 1.6, 0.7 / 1.6]
+        fused_result = fusion_client.fuse_grids(
+            grids=[laser_grid, ct_grid],
+            strategy="weighted_average",
+            weights=weights,
+        )
 
-            fused_result = fusion_client.fuse_voxel_grids(grids=[laser_grid, ct_grid], method="quality_based")
-
-            # Assertions
-            assert fused_result is not None
+        assert fused_result is not None
 
     @pytest.mark.e2e
     def test_fusion_with_different_methods(self, mock_unified_query_client, mock_mongo_client):
@@ -251,31 +226,15 @@ class TestMultiSourceFusion:
             interpolation_method="nearest",
         )
 
-        # Step 2: Extract signals
-        signals = {}
-        if "laser_power" in grid1.available_signals:
-            laser_values = [v.signals.get("laser_power", 0) for v in grid1.voxels.values() if "laser_power" in v.signals]
-            if laser_values:
-                signals["laser_power"] = np.array(laser_values)
-
-        if "temperature" in grid2.available_signals:
-            temp_values = [v.signals.get("temperature", 0) for v in grid2.voxels.values() if "temperature" in v.signals]
-            if temp_values:
-                signals["temperature"] = np.array(temp_values)
-
-        # Step 3: Test different fusion methods
+        # Step 2: Test different fusion methods (fuse_grids with strategy)
         grid1.finalize()
         grid2.finalize()
 
-        if len(signals) >= 2:
-            methods = ["weighted_average", "median"]
-
-            for method in methods:
-                fusion_client = VoxelFusion()
-                fused_result = fusion_client.fuse_voxel_grids(grids=[grid1, grid2], method=method)
-
-                # Assertions
-                assert fused_result is not None
+        strategies = ["weighted_average", "median"]
+        for strategy in strategies:
+            fusion_client = VoxelFusion()
+            fused_result = fusion_client.fuse_grids(grids=[grid1, grid2], strategy=strategy)
+            assert fused_result is not None
 
     @pytest.mark.e2e
     def test_fusion_with_data_fusion_engine(self, mock_unified_query_client, mock_mongo_client):
@@ -296,33 +255,23 @@ class TestMultiSourceFusion:
             interpolation_method="nearest",
         )
 
-        # Step 2: Extract all signals as arrays matching grid dimensions
-        # Ensure grid is finalized to have signal arrays available
+        # Step 2: Extract all signals as arrays; ensure grid is finalized
         grid.finalize()
 
         signals = {}
         for signal_name in grid.available_signals:
-            # Use get_signal_array to get a flattened array matching grid dimensions
             signal_array = grid.get_signal_array(signal_name, default=0.0)
-            # Flatten to 1D for fusion
             signals[signal_name] = signal_array.flatten()
 
-        # Step 3: Use DataFusion engine
+        # Step 3: Use DataFusion engine (from am_qadf.fusion.data_fusion)
         if len(signals) >= 2:
-            # Verify all signals have the same shape
             signal_shapes = [arr.shape for arr in signals.values()]
-            if len(set(signal_shapes)) == 1:  # All same shape
+            if len(set(signal_shapes)) == 1:
                 fusion_engine = DataFusion(default_strategy=FusionStrategy.WEIGHTED_AVERAGE)
-
-                # Register quality scores
                 for signal_name in signals.keys():
                     fusion_engine.register_source_quality(signal_name, 0.8)
-
-                # Fuse signals (quality scores are used automatically when weights=None)
                 fused = fusion_engine.fuse_signals(signals=signals, strategy=FusionStrategy.WEIGHTED_AVERAGE)
-
-                # Assertions
                 assert fused is not None
                 assert isinstance(fused, np.ndarray)
                 assert len(fused) > 0
-                assert fused.shape == signal_shapes[0]  # Same shape as input signals
+                assert fused.shape == signal_shapes[0]

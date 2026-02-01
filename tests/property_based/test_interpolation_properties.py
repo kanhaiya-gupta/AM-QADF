@@ -9,7 +9,7 @@ import numpy as np
 from hypothesis import given, strategies as st, assume, settings
 
 try:
-    from am_qadf.voxelization.voxel_grid import VoxelGrid
+    from am_qadf.voxelization.uniform_resolution import VoxelGrid
     from am_qadf.signal_mapping.methods.nearest_neighbor import (
         NearestNeighborInterpolation,
     )
@@ -19,6 +19,12 @@ try:
     INTERPOLATION_AVAILABLE = True
 except ImportError:
     INTERPOLATION_AVAILABLE = False
+
+
+def _get_signal_array(grid, signal_name="test_signal"):
+    """Get 1D array of interpolated values (valid only)."""
+    arr = grid.get_signal_array(signal_name, default=np.nan)
+    return arr[~np.isnan(arr)] if arr.size else np.array([])
 
 
 @pytest.mark.skipif(not INTERPOLATION_AVAILABLE, reason="Interpolation methods not available")
@@ -57,11 +63,9 @@ class TestInterpolationProperties:
         result_grid = method.interpolate(points, signal_dict, grid)
 
         # Property: All interpolated values should be within input range
-        if len(result_grid.voxels) > 0:
-            for voxel in result_grid.voxels.values():
-                if "test_signal" in voxel.signals:
-                    value = voxel.signals["test_signal"]
-                    assert signal_min <= value <= signal_max or np.isclose(value, signal_min) or np.isclose(value, signal_max)
+        arr = _get_signal_array(result_grid)
+        if arr.size > 0:
+            assert np.all(arr >= signal_min - 1e-6) and np.all(arr <= signal_max + 1e-6)
 
     @given(
         n_points=st.integers(min_value=3, max_value=30),
@@ -104,19 +108,16 @@ class TestInterpolationProperties:
                 voxel_to_points[voxel_key] = []
             voxel_to_points[voxel_key].append(i)
 
-        # Check property for each voxel
+        # Check property for each voxel using get_signal_array
+        arr = result_grid.get_signal_array("test_signal", default=np.nan)
         for voxel_key, point_indices in voxel_to_points.items():
-            if voxel_key in result_grid.voxels:
-                voxel = result_grid.voxels[voxel_key]
-                if "test_signal" in voxel.signals:
-                    interpolated = voxel.signals["test_signal"]
-                    # Get all signals that map to this voxel
+            i, j, k = voxel_key
+            if 0 <= i < result_grid.dims[0] and 0 <= j < result_grid.dims[1] and 0 <= k < result_grid.dims[2]:
+                interpolated = arr[i, j, k]
+                if not np.isnan(interpolated):
                     voxel_signals = [signals[i] for i in point_indices]
                     min_signal = min(voxel_signals)
                     max_signal = max(voxel_signals)
-
-                    # Property: Interpolated value should be within range of signals in this voxel
-                    # (for mean aggregation, it should be between min and max)
                     assert (
                         min_signal <= interpolated <= max_signal
                         or np.isclose(interpolated, min_signal, atol=1e-6)
@@ -152,11 +153,9 @@ class TestInterpolationProperties:
         result_grid = method.interpolate(points, signal_dict, grid)
 
         # Property: All interpolated values should be constant (within tolerance)
-        if len(result_grid.voxels) > 0:
-            values = [voxel.signals["test_signal"] for voxel in result_grid.voxels.values() if "test_signal" in voxel.signals]
-            if len(values) > 0:
-                # All values should be close to constant
-                assert all(np.isclose(v, constant_value, atol=1e-6) for v in values)
+        arr = _get_signal_array(result_grid)
+        if arr.size > 0:
+            assert np.allclose(arr, constant_value, atol=1e-6)
 
     @given(
         n_points=st.integers(min_value=5, max_value=30),
@@ -246,12 +245,10 @@ class TestInterpolationProperties:
         result2 = method.interpolate(points, signal_dict2, grid2)
 
         # Property: Scaled input should produce scaled output
-        voxels1 = {k: v.signals.get("test_signal", 0) for k, v in result1.voxels.items() if "test_signal" in v.signals}
-        voxels2 = {k: v.signals.get("test_signal", 0) for k, v in result2.voxels.items() if "test_signal" in v.signals}
-
-        common_voxels = set(voxels1.keys()) & set(voxels2.keys())
-        if len(common_voxels) > 0:
-            for voxel_key in common_voxels:
-                if voxels1[voxel_key] != 0:  # Avoid division by zero
-                    ratio = voxels2[voxel_key] / voxels1[voxel_key]
-                    assert np.isclose(ratio, scale_factor, atol=0.1)  # Allow some tolerance
+        a1 = result1.get_signal_array("test_signal", default=np.nan)
+        a2 = result2.get_signal_array("test_signal", default=np.nan)
+        assert a1.shape == a2.shape
+        both_valid = ~(np.isnan(a1) | np.isnan(a2)) & (np.abs(a1) > 1e-10)
+        if np.any(both_valid):
+            ratio = a2[both_valid] / a1[both_valid]
+            assert np.allclose(ratio, scale_factor, atol=0.1)

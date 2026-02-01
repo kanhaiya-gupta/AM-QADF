@@ -2,7 +2,7 @@
 
 ## What is AM-QADF?
 
-**AM-QADF** (Additive Manufacturing Quality Assessment and Data Fusion) is a comprehensive Python framework for processing, analyzing, and visualizing multi-source additive manufacturing data. It provides a unified interface for querying diverse data sources, mapping signals to voxel domains, performing quality assessment, and conducting advanced analytics.
+**AM-QADF** (Additive Manufacturing Quality Assessment and Data Fusion) is a comprehensive framework for processing, analyzing, and visualizing multi-source additive manufacturing data. The **primary API is Python** (`am_qadf`); performance-critical paths are implemented in **C++** and exposed via the **native extension** (`am_qadf_native`). You use the framework entirely from Python; C++ is invoked automatically where available. See [Python and C++](12-python-and-cpp.md) for details.
 
 ## Framework Overview (Non-Technical)
 
@@ -221,11 +221,16 @@ graph TB
 - **Research**: Conduct sensitivity analysis and virtual experiments
 - **Visualization**: Explore 3D manufacturing data interactively
 
+## Python and C++
+
+The framework is **Python-first** with **C++ native extensions** for voxelization, synchronization, signal mapping, correction, processing, fusion, query, and I/O. Building the C++ extension (done when you `pip install -e .`) enables full performance and all features; see [Python and C++](12-python-and-cpp.md).
+
 ## Next Steps
 
-- **[Installation](03-installation.md)** - Install the framework
+- **[Installation](03-installation.md)** - Install the framework (Python and optional C++ build)
 - **[Quick Start](04-quick-start.md)** - Get started with examples
 - **[Architecture](02-architecture.md)** - Understand the design
+- **[Python and C++](12-python-and-cpp.md)** - Implementation layers and where C++ is used
 - **[Modules](05-modules/README.md)** - Explore individual modules
 
 ---

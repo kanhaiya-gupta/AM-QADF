@@ -13,7 +13,7 @@ __version__ = "0.1.0"
 # Import main generators (lazy imports to avoid heavy dependencies)
 __all__ = [
     # Sensor generators
-    'ISPMGenerator',
+    'ISPMThermalGenerator',
     'CTScanGenerator',
     'LaserParameterGenerator',
     # Process generators
@@ -28,9 +28,12 @@ __all__ = [
 # Lazy imports - actual imports happen when modules are accessed
 def __getattr__(name):
     """Lazy import of generators to avoid heavy dependencies at import time."""
-    if name == 'ISPMGenerator':
-        from .sensors.ispm_generator import ISPMGenerator
-        return ISPMGenerator
+    if name == 'ISPMThermalGenerator':
+        from .sensors.ispm_thermal_generator import ISPMThermalGenerator
+        return ISPMThermalGenerator
+    elif name == 'ISPMGenerator':  # Backward compatibility alias
+        from .sensors.ispm_thermal_generator import ISPMThermalGenerator
+        return ISPMThermalGenerator
     elif name == 'CTScanGenerator':
         from .sensors.ct_scan_generator import CTScanGenerator
         return CTScanGenerator

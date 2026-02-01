@@ -12,7 +12,7 @@ from unittest.mock import Mock, MagicMock
 try:
     from am_qadf.query.unified_query_client import UnifiedQueryClient
     from am_qadf.voxel_domain.voxel_domain_client import VoxelDomainClient
-    from am_qadf.voxelization.voxel_grid import VoxelGrid
+    from am_qadf.voxelization.uniform_resolution import VoxelGrid
     from am_qadf.analytics.statistical_analysis.client import AdvancedAnalyticsClient
     from am_qadf.analytics.sensitivity_analysis.client import SensitivityAnalysisClient
     from am_qadf.analytics.reporting.report_generators import AnalysisReportGenerator

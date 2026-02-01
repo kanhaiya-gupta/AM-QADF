@@ -15,7 +15,7 @@ try:
     from ..process.stl_processor import STLProcessor
     from ..process.hatching_generator import HatchingGenerator, HatchingConfig
     from ..sensors.laser_parameter_generator import LaserParameterGenerator
-    from ..sensors.ispm_generator import ISPMGenerator
+    from ..sensors.ispm_thermal_generator import ISPMThermalGenerator
     from ..sensors.ct_scan_generator import CTScanGenerator
     GENERATORS_AVAILABLE = True
 except ImportError as e:
@@ -52,7 +52,7 @@ def generate_all_data(n_models: Optional[int] = None,
     stl_processor = STLProcessor()
     hatching_gen = HatchingGenerator()
     laser_gen = LaserParameterGenerator()
-    ispm_gen = ISPMGenerator()
+    ispm_gen = ISPMThermalGenerator()
     ct_gen = CTScanGenerator()
     
     # Find STL files

@@ -31,6 +31,7 @@ class SpatialQuery:
     bbox_max: Optional[Tuple[float, float, float]] = None  # (x_max, y_max, z_max) in mm
     component_id: Optional[str] = None  # Filter by component ID
     layer_range: Optional[Tuple[int, int]] = None  # (start_layer, end_layer)
+    max_results: Optional[int] = None  # Maximum number of results to return (performance optimization)
 
     def is_empty(self) -> bool:
         """Check if query has no spatial constraints."""

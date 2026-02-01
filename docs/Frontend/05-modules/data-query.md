@@ -6,7 +6,7 @@ The Data Query module provides interfaces for querying multi-source data from th
 
 ## Features
 
-- **Multi-Source Querying**: Query data from hatching, laser, CT, ISPM, and other sources
+- **Multi-Source Querying**: Query data from hatching (with laser parameters), Laser Beam Diagnostics (LBD) monitoring, CT, ISPM, and other sources
 - **Spatial Filtering**: Filter by bounding box and spatial regions
 - **Temporal Filtering**: Filter by time ranges and layer ranges
 - **Signal Type Selection**: Select specific signal types to retrieve
@@ -53,10 +53,10 @@ The Data Query module provides interfaces for querying multi-source data from th
 ### Basic Query
 
 ```javascript
-// Execute a query
+// Execute a query (sources: hatching = paths + laser parameters; laser = LBD monitoring data)
 const queryRequest = {
   model_id: "my_model",
-  sources: ["hatching", "laser"],
+  sources: ["hatching", "laser"],  // laser = Laser Beam Diagnostics (LBD) monitoring
   spatial_bbox: {
     min: [-50, -50, -50],
     max: [50, 50, 50]

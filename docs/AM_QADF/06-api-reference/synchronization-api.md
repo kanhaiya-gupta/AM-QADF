@@ -2,7 +2,73 @@
 
 ## Overview
 
-The Synchronization module provides temporal and spatial alignment capabilities for multi-source data.
+The Synchronization module provides temporal and spatial alignment capabilities for multi-source data. **Spatial alignment** is performed via bounding-box corner correspondence (see [SPATIAL_ALIGNMENT_DESIGN.md](../../Infrastructure/SPATIAL_ALIGNMENT_DESIGN.md)); the main Python API is `UnifiedQueryClient.query_and_transform_points`.
+
+---
+
+## UnifiedQueryClient.query_and_transform_points
+
+Query points from multiple sources, compute transformation from bbox corners (24 permutations × 56 triplets), validate, and return transformed points in the reference coordinate system.
+
+```python
+from am_qadf.query import UnifiedQueryClient
+
+client = UnifiedQueryClient(...)
+result = client.query_and_transform_points(
+    model_id: str,
+    source_types: List[str],
+    reference_source: str = "hatching",
+    layer_range: Optional[Tuple[int, int]] = None,
+    bbox: Optional[Tuple[Tuple[float, float, float], Tuple[float, float, float]]] = None,
+    use_full_extent_for_transform: bool = True,
+    validation_tolerance: float = 1e-6,
+    save_processed_data: bool = False,
+    mongo_uri: Optional[str] = None,
+    db_name: Optional[str] = None,
+) -> Dict[str, Any]
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|--------------|
+| **model_id** | str | Model UUID |
+| **source_types** | List[str] | Source keys, e.g. `['hatching', 'ispm_thermal', 'ispm_optical']` |
+| **reference_source** | str | Reference frame (e.g. `"hatching"`). Non-reference sources are transformed to this. |
+| **layer_range** | Optional[Tuple[int,int]] | Optional `(layer_start, layer_end)` to filter which points are returned/saved |
+| **bbox** | Optional[tuple] | Optional `((x_min,y_min,z_min), (x_max,y_max,z_max))` to filter points returned/saved |
+| **use_full_extent_for_transform** | bool | If `True` (default), bboxes and transform are computed from **full** data; filters only affect returned/saved points. If `False`, bbox/transform use the queried subset. |
+| **validation_tolerance** | float | Minimum tolerance; adaptive tolerance is `max(0.01 * max_extent, 1e-3, validation_tolerance)` (1% error bar) |
+| **save_processed_data** | bool | If `True`, save transformed points via MongoDBWriter |
+| **mongo_uri**, **db_name** | Optional[str] | Required when `save_processed_data=True` |
+
+### Returns
+
+Dict with:
+
+| Key | Description |
+|-----|--------------|
+| **transformed_points** | `Dict[str, np.ndarray]`: `{ source_type: (N, 3) }` points in reference frame |
+| **signals** | `Dict[str, Dict[str, np.ndarray]]`: signals per source |
+| **unified_bounds** | `BoundingBox`: union of returned point sets |
+| **transformations** | Per non-reference source: `matrix`, `quality`, `fit_errors`, `best_fit`, `fit_errors_summary`, optional `correspondence_validation` |
+| **validation_results** | `Dict[str, ValidationResult]`: pass/fail and errors (uses best_ref_corners internally) |
+| **raw_results** | `Dict[str, QueryResult]`: query results before transform |
+
+### transformations[source] structure
+
+- **matrix** (np.ndarray 4×4): Similarity transform from source to reference
+- **quality**: `TransformationQuality` (rms_error, max_error, mean_error, alignment_quality, confidence)
+- **fit_errors**: List of 24×56 per-fit dicts: `permutation_index`, `triplet_index`, `max_error`, `mean_error`, `rms_error`
+- **best_fit**: Dict for the chosen fit: `permutation_index`, `triplet_index`, `max_error`, `mean_error`, `rms_error`
+- **fit_errors_summary**: `min_max_error`, `max_max_error`, `num_fits` (1344)
+- **correspondence_validation** (optional): `mean_distance`, `max_distance`, `num_pairs` (9), `type` ("corners_and_centre")
+
+### Requirements
+
+- **am_qadf_native** (C++ bindings) must be built; provides `TransformationComputer`, `TransformationValidator`, `PointTransformer`, `UnifiedBoundsComputer`, `BoundingBox`, `points_to_eigen_matrix`, etc.
+
+---
 
 ## TimePoint
 

@@ -35,14 +35,18 @@ def assert_voxel_grid_valid(voxel_grid) -> None:
     """
     Assert that a voxel grid is valid.
 
+    Accepts grids with .dims (uniform_resolution.VoxelGrid) or .dimensions (legacy/mocks).
+
     Args:
         voxel_grid: VoxelGrid instance to validate
     """
     assert voxel_grid is not None, "Voxel grid is None"
-    assert voxel_grid.dimensions is not None, "Voxel grid dimensions are None"
-    assert len(voxel_grid.dimensions) == 3, "Voxel grid must be 3D"
-    assert all(d > 0 for d in voxel_grid.dimensions), "All dimensions must be positive"
-    assert voxel_grid.resolution > 0, "Resolution must be positive"
+    dims = getattr(voxel_grid, "dims", getattr(voxel_grid, "dimensions", None))
+    assert dims is not None, "Voxel grid dimensions/dims are None"
+    dims_tuple = tuple(dims) if hasattr(dims, "__iter__") and not isinstance(dims, (str, bytes)) else (dims,)
+    assert len(dims_tuple) == 3, "Voxel grid must be 3D"
+    assert all(d > 0 for d in dims_tuple), "All dimensions must be positive"
+    assert getattr(voxel_grid, "resolution", 0) > 0, "Resolution must be positive"
 
 
 def create_test_points(n_points: int = 10, bounds: Tuple[float, float] = (0.0, 10.0)) -> np.ndarray:

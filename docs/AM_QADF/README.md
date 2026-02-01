@@ -42,7 +42,8 @@ docs/AM_QADF/
 ├── 08-configuration.md           # Configuration guide
 ├── 09-performance.md             # Performance considerations
 ├── 10-troubleshooting.md         # Common issues and solutions
-└── 11-contributing.md            # Contributing guidelines
+├── 11-contributing.md            # Contributing guidelines
+└── 12-python-and-cpp.md         # Python and C++ implementation
 ```
 
 ## Quick Navigation
@@ -77,13 +78,18 @@ docs/AM_QADF/
 - **[Configuration](08-configuration.md)** - Configuration options
 - **[Performance](09-performance.md)** - Performance optimization
 
+### Implementation
+- **[Python and C++](12-python-and-cpp.md)** - Python API and C++ native extension
+
 ### Support
 - **[Troubleshooting](10-troubleshooting.md)** - Common issues and solutions
 - **[Contributing](11-contributing.md)** - How to contribute
 
 ## Framework Overview
 
-AM-QADF is a comprehensive framework for:
+AM-QADF is a **Python + C++** framework: the main API is Python (`am_qadf`); performance-critical code is in the C++ native extension (`am_qadf_native`). See [Python and C++](12-python-and-cpp.md).
+
+The framework provides:
 - **Data Fusion**: Combining multi-source additive manufacturing data
 - **Quality Assessment**: Evaluating data quality and completeness
 - **Analytics**: Statistical and sensitivity analysis

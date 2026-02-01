@@ -48,6 +48,7 @@ The AM-QADF project uses GitHub Actions for Continuous Integration and Continuou
 ```
 docs/CICD/
 ├── README.md                 # This file - overview and quick start
+├── build-process.md          # Third-party vs framework build order (conda vs from-source)
 ├── workflows.md              # Detailed workflow documentation
 ├── notebook-validation.md    # Notebook validation guide
 ├── local-testing.md         # Local testing with act
@@ -58,10 +59,12 @@ docs/CICD/
 
 | Workflow | Trigger | Purpose | Duration |
 |----------|---------|----------|----------|
-| **CI** | Manual (workflow_dispatch) | Full test suite, linting, notebooks | ~15-20 min |
+| **CI** | Manual (workflow_dispatch) | Full test suite (Python + C++), linting, notebooks | ~15-25 min |
 | **PR Checks** | Manual (workflow_dispatch) | Quick validation for PRs | ~5-10 min |
 | **Nightly** | Scheduled (Weekly) + Manual | Comprehensive testing | ~20-30 min |
-| **Release** | Release published + Manual | Release validation | ~15-20 min |
+| **Release** | Release published + Manual | Release validation (Python + C++) | ~15-25 min |
+
+The C++ job downloads third-party dependencies (OpenVDB, ITK, mongo-cxx-driver) from the GitHub release **"Third-party dependencies"** (tag `v0.2.0`). No cache or local install folders — same behavior on GitHub Actions and local `act`. See [Build Process](build-process.md) for third-party vs framework order.
 
 ## Workflows
 
@@ -70,10 +73,11 @@ docs/CICD/
 **File**: `.github/workflows/ci.yml`
 
 Comprehensive CI workflow with:
-- Multi-version Python testing (3.9, 3.10, 3.11)
+- Python 3.11 testing (unit, integration, e2e, property_based, utils, coverage)
+- **C++ build and test** (conda env from `.github/conda-env-cpp.yml`, CMake, ctest)
 - Code linting and formatting checks
 - Test suite matrix execution
-- Performance benchmarks
+- Optional performance benchmarks
 - Notebook validation
 
 [Detailed Documentation](workflows.md#1-ci-workflow-ciyml)
@@ -107,18 +111,19 @@ Weekly comprehensive testing:
 **File**: `.github/workflows/release.yml`
 
 Release validation:
-- Full test suite
+- Full Python test suite and test report
+- **C++ build and test** (conda env, CMake, ctest)
 - Documentation build
 - Release-ready notebook validation
-- Test report generation
 
 [Detailed Documentation](workflows.md#4-release-workflow-releaseyml)
 
 ## Key Features
 
-### Multi-Version Testing
+### Python and C++ Testing
 
-Tests run across Python 3.9, 3.10, and 3.11 to ensure compatibility.
+- **Python**: pytest (unit, integration, e2e, property_based, utils) on Python 3.11.
+- **C++**: Dedicated job builds with CMake (conda-forge deps) and runs `ctest --output-on-failure`.
 
 ### Notebook Validation
 
@@ -146,24 +151,25 @@ Nightly builds include:
 
 ## Configuration
 
-### Python Versions
+### Python Version
 
-- **3.9**: Minimum supported
-- **3.10**: Recommended
-- **3.11**: Latest stable
+- **3.11**: Used in CI (single version in matrix).
 
-### System Dependencies
+### System Dependencies (Python jobs)
 
 - `libgl1` - OpenGL libraries
 - `libglib2.0-0` - GLib libraries
 
+### C++ Job Dependencies
+
+Installed via apt + pip (system TBB, pybind11); OpenVDB/ITK/mongo-cxx from third_party cache:
+- Python 3.11, CMake, Ninja, OpenVDB, ITK, libmongocxx, pybind11, Eigen, TBB.
+
 ### Python Dependencies
 
 Installed from `requirements.txt`:
-- Core framework dependencies
-- Testing dependencies
-- Linting dependencies
-- Notebook dependencies
+- Core framework dependencies (including pybind11 for C++ bindings)
+- Testing, linting, and notebook dependencies
 
 ## Troubleshooting
 
@@ -216,6 +222,7 @@ Common issues and solutions:
 
 ## Related Documentation
 
+- **[Build Process](build-process.md)** - Third-party vs framework build order; conda vs build-from-source; correct CI/CD order
 - **[Workflows Guide](workflows.md)** - Detailed workflow documentation
 - **[Notebook Validation](notebook-validation.md)** - Notebook validation guide
 - **[Local Testing](local-testing.md)** - Test workflows locally with act

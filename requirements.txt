@@ -19,12 +19,6 @@ numexpr
 # ============================================================================
 # DATA PROCESSING & STORAGE
 # ============================================================================
-# PySpark for distributed processing
-pyspark==3.4.1
-py4j==0.10.9.7
-findspark==2.0.1
-delta-spark==2.4.0
-
 # Arrow/Parquet for efficient data formats
 pyarrow==16.1.0
 pyarrow-hotfix==0.7
@@ -401,12 +395,13 @@ tifffile==2025.10.4
 opencv-python==4.12.0.88
 
 # ============================================================================
-# NUMERICAL COMPUTING
+# NUMERICAL COMPUTING & C++ BINDINGS
 # ============================================================================
 numba==0.62.1
 llvmlite==0.45.1
 Cython==3.1.4
-pybind11
+# pybind11: required for C++ Python bindings (am_qadf_native); use >=2.10 to match pyproject.toml
+pybind11>=2.10
 pybind11-global
 
 # ============================================================================
@@ -464,11 +459,12 @@ executing==2.2.1
 pure_eval==0.2.3
 stack-data==0.6.3
 
-# Type checking & introspection
+# Type checking & introspection (mypy stubs)
 typing_extensions==4.15.0
 typing-inspection==0.4.2
 types-python-dateutil==2.9.0.20251008
 types-requests==2.32.4.20250913
+types-PyYAML>=6.0.12
 
 # Other utilities
 attrs==25.4.0

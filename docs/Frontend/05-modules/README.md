@@ -17,8 +17,9 @@ The frontend client is organized into architectural layers, matching the backend
 - **[Signal Mapping](signal-mapping.md)** - Signal mapping to voxel grids
 - **[Synchronization](synchronization.md)** - Temporal and spatial alignment
 - **[Correction](correction.md)** - Geometric distortion correction
-- **[Fusion](fusion.md)** - Multi-source data fusion
 - **[Processing](processing.md)** - Signal processing pipelines
+- **[Grid Transformation](grid-transformation.md)** - Grid-level transformation (after signal mapping, before fusion)
+- **[Fusion](fusion.md)** - Multi-source data fusion
 
 ### Application Layer
 - **[Analytics](analytics.md)** - Statistical analysis, sensitivity analysis, SPC

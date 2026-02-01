@@ -29,10 +29,22 @@ exclude =
 # W503: line break before binary operator (conflicts with Black)
 # F401: imported but unused (can be noisy during development)
 # F403: unable to detect undefined names (can be noisy)
+# F821: undefined name in type hints (forward references as strings, e.g. "ModelRegistry")
 # E402: module level import not at top of file (sometimes needed)
+# E302: expected 2 blank lines before class/function (style)
+# E303: too many blank lines (style)
+# E701: multiple statements on one line (colon) (style)
+# E741: ambiguous variable name 'l' (style)
+# E114/E116: indentation not multiple of 4 / unexpected indentation (style)
 # W291-W743: Includes W391 (blank line at end of file) - newline issues are ignored
 ignore =
+    E114
+    E116
     E128
+    E302
+    E303
+    E701
+    E741
     E203
     E226
     W503
@@ -49,6 +61,7 @@ ignore =
     F405
     F541
     F811
+    F821
     F841
     E402
     W291

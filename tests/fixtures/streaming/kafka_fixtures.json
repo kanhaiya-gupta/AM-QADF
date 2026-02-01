@@ -1,0 +1,512 @@
+[
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_0",
+    "partition": 0,
+    "offset": 0,
+    "timestamp": "2026-01-30T17:31:18.343815",
+    "value": {
+      "sensor_id": "sensor_0",
+      "temperature": 1024.8357076505617,
+      "power": 198.61735698828815,
+      "velocity": 103.23844269050346,
+      "x": 15.601864044243651,
+      "y": 15.599452033620265,
+      "z": 0.5808361216819946,
+      "timestamp": "2026-01-30T17:31:18.343884"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_1",
+    "partition": 0,
+    "offset": 1,
+    "timestamp": "2026-01-30T17:31:18.343890",
+    "value": {
+      "sensor_id": "sensor_1",
+      "temperature": 1076.1514928204012,
+      "power": 202.79041292200137,
+      "velocity": 105.05257642403264,
+      "x": 70.80725777960456,
+      "y": 2.0584494295802447,
+      "z": 9.699098521619943,
+      "timestamp": "2026-01-30T17:31:18.343898"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_2",
+    "partition": 0,
+    "offset": 2,
+    "timestamp": "2026-01-30T17:31:18.343900",
+    "value": {
+      "sensor_id": "sensor_2",
+      "temperature": 976.5262807032524,
+      "power": 205.42560043585965,
+      "velocity": 97.68291153593769,
+      "x": 30.42422429595377,
+      "y": 52.475643163223786,
+      "z": 4.319450186421157,
+      "timestamp": "2026-01-30T17:31:18.343909"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_3",
+    "partition": 0,
+    "offset": 3,
+    "timestamp": "2026-01-30T17:31:18.343911",
+    "value": {
+      "sensor_id": "sensor_3",
+      "temperature": 976.7135123214872,
+      "power": 208.16445080951328,
+      "velocity": 92.3806200119207,
+      "x": 13.949386065204184,
+      "y": 29.214464853521815,
+      "z": 3.663618432936917,
+      "timestamp": "2026-01-30T17:31:18.343920"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_4",
+    "partition": 0,
+    "offset": 4,
+    "timestamp": "2026-01-30T17:31:18.343923",
+    "value": {
+      "sensor_id": "sensor_4",
+      "temperature": 1073.2824384460778,
+      "power": 197.74223699513465,
+      "velocity": 100.33764102343962,
+      "x": 59.24145688620425,
+      "y": 4.645041271999773,
+      "z": 6.075448519014383,
+      "timestamp": "2026-01-30T17:31:18.343937"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_5",
+    "partition": 0,
+    "offset": 5,
+    "timestamp": "2026-01-30T17:31:18.343940",
+    "value": {
+      "sensor_id": "sensor_0",
+      "temperature": 928.7625906893271,
+      "power": 193.99746149894088,
+      "velocity": 104.73719910523319,
+      "x": 9.767211400638388,
+      "y": 68.42330265121569,
+      "z": 4.4015249373960135,
+      "timestamp": "2026-01-30T17:31:18.343952"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_6",
+    "partition": 0,
+    "offset": 6,
+    "timestamp": "2026-01-30T17:31:18.343954",
+    "value": {
+      "sensor_id": "sensor_1",
+      "temperature": 999.3251387631033,
+      "power": 189.42289071044098,
+      "velocity": 104.11272456051594,
+      "x": 31.171107608941096,
+      "y": 52.00680211778108,
+      "z": 5.4671027934327965,
+      "timestamp": "2026-01-30T17:31:18.343961"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_7",
+    "partition": 0,
+    "offset": 7,
+    "timestamp": "2026-01-30T17:31:18.343966",
+    "value": {
+      "sensor_id": "sensor_2",
+      "temperature": 938.9578175014489,
+      "power": 202.1863831605386,
+      "velocity": 104.40880519474305,
+      "x": 92.18742350231169,
+      "y": 8.84925020519195,
+      "z": 1.959828624191452,
+      "timestamp": "2026-01-30T17:31:18.343976"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_8",
+    "partition": 0,
+    "offset": 8,
+    "timestamp": "2026-01-30T17:31:18.343978",
+    "value": {
+      "sensor_id": "sensor_3",
+      "temperature": 994.217585880588,
+      "power": 196.98896304410712,
+      "velocity": 92.60739004816287,
+      "x": 82.87375091519293,
+      "y": 35.67533266935893,
+      "z": 2.8093450968738076,
+      "timestamp": "2026-01-30T17:31:18.343986"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_9",
+    "partition": 0,
+    "offset": 9,
+    "timestamp": "2026-01-30T17:31:18.343988",
+    "value": {
+      "sensor_id": "sensor_4",
+      "temperature": 964.0077895802646,
+      "power": 188.69447695318433,
+      "velocity": 100.6721444131401,
+      "x": 80.21969807540397,
+      "y": 7.455064367977082,
+      "z": 9.868869366005173,
+      "timestamp": "2026-01-30T17:31:18.343996"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_10",
+    "partition": 0,
+    "offset": 10,
+    "timestamp": "2026-01-30T17:31:18.344007",
+    "value": {
+      "sensor_id": "sensor_0",
+      "temperature": 966.1538999847021,
+      "power": 206.1167628884087,
+      "velocity": 105.15499761247976,
+      "x": 77.12703466859458,
+      "y": 7.4044651734090365,
+      "z": 3.5846572854427263,
+      "timestamp": "2026-01-30T17:31:18.344015"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_11",
+    "partition": 0,
+    "offset": 11,
+    "timestamp": "2026-01-30T17:31:18.344017",
+    "value": {
+      "sensor_id": "sensor_1",
+      "temperature": 1046.56400595581,
+      "power": 184.91846710452518,
+      "velocity": 105.49823487892411,
+      "x": 6.355835028602364,
+      "y": 31.09823217156622,
+      "z": 3.2518332202674705,
+      "timestamp": "2026-01-30T17:31:18.344025"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_12",
+    "partition": 0,
+    "offset": 12,
+    "timestamp": "2026-01-30T17:31:18.344027",
+    "value": {
+      "sensor_id": "sensor_2",
+      "temperature": 1040.62629111971,
+      "power": 213.56240028570824,
+      "velocity": 99.63994939209833,
+      "x": 11.959424593830171,
+      "y": 71.3244787222995,
+      "z": 7.607850486168974,
+      "timestamp": "2026-01-30T17:31:18.344034"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_13",
+    "partition": 0,
+    "offset": 13,
+    "timestamp": "2026-01-30T17:31:18.344036",
+    "value": {
+      "sensor_id": "sensor_3",
+      "temperature": 1050.1766448946012,
+      "power": 214.95434252883473,
+      "velocity": 101.6909062599666,
+      "x": 49.379559636439076,
+      "y": 52.27328293819941,
+      "z": 4.275410183585496,
+      "timestamp": "2026-01-30T17:31:18.344043"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_14",
+    "partition": 0,
+    "offset": 14,
+    "timestamp": "2026-01-30T17:31:18.344046",
+    "value": {
+      "sensor_id": "sensor_4",
+      "temperature": 1004.3523534119086,
+      "power": 197.00992649534132,
+      "velocity": 100.45880388267751,
+      "x": 90.7566473926093,
+      "y": 24.929222914887493,
+      "z": 4.103829230356297,
+      "timestamp": "2026-01-30T17:31:18.344054"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_15",
+    "partition": 0,
+    "offset": 15,
+    "timestamp": "2026-01-30T17:31:18.344056",
+    "value": {
+      "sensor_id": "sensor_0",
+      "temperature": 900.6215542699554,
+      "power": 192.1074167130208,
+      "velocity": 103.71855641885614,
+      "x": 7.697990982879299,
+      "y": 28.9751452913768,
+      "z": 1.6122128725400442,
+      "timestamp": "2026-01-30T17:31:18.344063"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_16",
+    "partition": 0,
+    "offset": 16,
+    "timestamp": "2026-01-30T17:31:18.344065",
+    "value": {
+      "sensor_id": "sensor_1",
+      "temperature": 1045.7701058851037,
+      "power": 203.28751109659686,
+      "velocity": 97.3511989811648,
+      "x": 89.25589984899777,
+      "y": 53.93422419156507,
+      "z": 8.074401551640625,
+      "timestamp": "2026-01-30T17:31:18.344072"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_17",
+    "partition": 0,
+    "offset": 17,
+    "timestamp": "2026-01-30T17:31:18.344074",
+    "value": {
+      "sensor_id": "sensor_2",
+      "temperature": 1025.6633716556678,
+      "power": 196.90711453555423,
+      "velocity": 103.36562751386988,
+      "x": 11.005192452767677,
+      "y": 22.793516254194166,
+      "z": 4.271077886262563,
+      "timestamp": "2026-01-30T17:31:18.344082"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_18",
+    "partition": 0,
+    "offset": 18,
+    "timestamp": "2026-01-30T17:31:18.344084",
+    "value": {
+      "sensor_id": "sensor_3",
+      "temperature": 1014.8060138532288,
+      "power": 202.61055272179888,
+      "velocity": 100.02556728321231,
+      "x": 41.7411003148779,
+      "y": 22.210781047073024,
+      "z": 1.198653673336828,
+      "timestamp": "2026-01-30T17:31:18.344091"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_19",
+    "partition": 0,
+    "offset": 19,
+    "timestamp": "2026-01-30T17:31:18.344094",
+    "value": {
+      "sensor_id": "sensor_4",
+      "temperature": 988.2706433312427,
+      "power": 204.5293632653351,
+      "velocity": 99.16969545824468,
+      "x": 32.320293202075526,
+      "y": 51.87906217433661,
+      "z": 7.030189588951778,
+      "timestamp": "2026-01-30T17:31:18.344104"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_20",
+    "partition": 0,
+    "offset": 20,
+    "timestamp": "2026-01-30T17:31:18.344107",
+    "value": {
+      "sensor_id": "sensor_0",
+      "temperature": 1012.8775195361383,
+      "power": 199.25554084233832,
+      "velocity": 90.4061439235048,
+      "x": 28.484049437746762,
+      "y": 3.6886947354532795,
+      "z": 6.095643339798968,
+      "timestamp": "2026-01-30T17:31:18.344120"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_21",
+    "partition": 0,
+    "offset": 21,
+    "timestamp": "2026-01-30T17:31:18.344123",
+    "value": {
+      "sensor_id": "sensor_1",
+      "temperature": 998.6743062275392,
+      "power": 193.40817697563523,
+      "velocity": 100.01968652215702,
+      "x": 27.864646423661142,
+      "y": 90.82658859666537,
+      "z": 2.395618906669724,
+      "timestamp": "2026-01-30T17:31:18.344146"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_22",
+    "partition": 0,
+    "offset": 22,
+    "timestamp": "2026-01-30T17:31:18.344150",
+    "value": {
+      "sensor_id": "sensor_2",
+      "temperature": 998.2644115147378,
+      "power": 188.31321962380468,
+      "velocity": 105.7141140725751,
+      "x": 23.763754399239968,
+      "y": 72.82163486118596,
+      "z": 3.677831327192532,
+      "timestamp": "2026-01-30T17:31:18.344160"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_23",
+    "partition": 0,
+    "offset": 23,
+    "timestamp": "2026-01-30T17:31:18.344162",
+    "value": {
+      "sensor_id": "sensor_3",
+      "temperature": 1037.5966516343387,
+      "power": 214.0520530587819,
+      "velocity": 106.96162876745952,
+      "x": 53.57746840747585,
+      "y": 9.02897700544083,
+      "z": 8.35302495589238,
+      "timestamp": "2026-01-30T17:31:18.344170"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_24",
+    "partition": 0,
+    "offset": 24,
+    "timestamp": "2026-01-30T17:31:18.344172",
+    "value": {
+      "sensor_id": "sensor_4",
+      "temperature": 950.4731837434656,
+      "power": 194.33702270397228,
+      "velocity": 100.4982568254382,
+      "x": 67.75643618422824,
+      "y": 1.6587828927856152,
+      "z": 5.12093058299281,
+      "timestamp": "2026-01-30T17:31:18.344179"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_25",
+    "partition": 0,
+    "offset": 25,
+    "timestamp": "2026-01-30T17:31:18.344181",
+    "value": {
+      "sensor_id": "sensor_0",
+      "temperature": 974.8262172941901,
+      "power": 206.49086732629107,
+      "velocity": 93.88563231662347,
+      "x": 17.436642900499145,
+      "y": 69.09377381024659,
+      "z": 3.867353463005374,
+      "timestamp": "2026-01-30T17:31:18.344189"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_26",
+    "partition": 0,
+    "offset": 26,
+    "timestamp": "2026-01-30T17:31:18.344191",
+    "value": {
+      "sensor_id": "sensor_1",
+      "temperature": 960.8373353831881,
+      "power": 196.77938483794324,
+      "velocity": 104.06758608684835,
+      "x": 81.72222002012158,
+      "y": 55.52008115994623,
+      "z": 5.296505783560065,
+      "timestamp": "2026-01-30T17:31:18.344199"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_27",
+    "partition": 0,
+    "offset": 27,
+    "timestamp": "2026-01-30T17:31:18.344200",
+    "value": {
+      "sensor_id": "sensor_2",
+      "temperature": 938.4567841783022,
+      "power": 196.75509042171106,
+      "velocity": 98.97066641452247,
+      "x": 89.72157579533267,
+      "y": 90.04180571633304,
+      "z": 6.33101457273268,
+      "timestamp": "2026-01-30T17:31:18.344208"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_28",
+    "partition": 0,
+    "offset": 28,
+    "timestamp": "2026-01-30T17:31:18.344210",
+    "value": {
+      "sensor_id": "sensor_3",
+      "temperature": 938.1524644560959,
+      "power": 186.79543386915725,
+      "velocity": 102.60970782808448,
+      "x": 88.70864242651173,
+      "y": 77.98755458576238,
+      "z": 6.420316461542877,
+      "timestamp": "2026-01-30T17:31:18.344217"
+    }
+  },
+  {
+    "topic": "am_qadf_monitoring",
+    "key": "key_29",
+    "partition": 0,
+    "offset": 29,
+    "timestamp": "2026-01-30T17:31:18.344220",
+    "value": {
+      "sensor_id": "sensor_4",
+      "temperature": 1014.8492336616594,
+      "power": 202.26288269498875,
+      "velocity": 104.23700716288319,
+      "x": 0.9197051616629648,
+      "y": 10.147154286603211,
+      "z": 6.635017691080558,
+      "timestamp": "2026-01-30T17:31:18.344228"
+    }
+  }
+]

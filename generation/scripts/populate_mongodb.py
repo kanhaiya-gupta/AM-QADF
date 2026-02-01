@@ -85,14 +85,22 @@ try:
         from generation.process.stl_processor import STLProcessor
         from generation.process.hatching_generator import HatchingGenerator
         from generation.sensors.laser_parameter_generator import LaserParameterGenerator
-        from generation.sensors.ispm_generator import ISPMGenerator
+        from generation.sensors.ispm_thermal_generator import ISPMThermalGenerator
+        from generation.sensors.ispm_optical_generator import ISPMOpticalGenerator
+        from generation.sensors.ispm_acoustic_generator import ISPMAcousticGenerator
+        from generation.sensors.ispm_strain_generator import ISPMStrainGenerator
+        from generation.sensors.ispm_plume_generator import ISPMPlumeGenerator
         from generation.sensors.ct_scan_generator import CTScanGenerator
     except ImportError as e:
         # Fallback to direct module loading with proper package setup
         stl_processor_path = data_gen_dir / 'process' / 'stl_processor.py'
         hatching_gen_path = data_gen_dir / 'process' / 'hatching_generator.py'
         laser_gen_path = data_gen_dir / 'sensors' / 'laser_parameter_generator.py'
-        ispm_gen_path = data_gen_dir / 'sensors' / 'ispm_generator.py'
+        ispm_thermal_gen_path = data_gen_dir / 'sensors' / 'ispm_thermal_generator.py'
+        ispm_optical_gen_path = data_gen_dir / 'sensors' / 'ispm_optical_generator.py'
+        ispm_acoustic_gen_path = data_gen_dir / 'sensors' / 'ispm_acoustic_generator.py'
+        ispm_strain_gen_path = data_gen_dir / 'sensors' / 'ispm_strain_generator.py'
+        ispm_plume_gen_path = data_gen_dir / 'sensors' / 'ispm_plume_generator.py'
         ct_gen_path = data_gen_dir / 'sensors' / 'ct_scan_generator.py'
         
         # Load models module first (needed by stl_processor)
@@ -121,11 +129,35 @@ try:
         spec_laser.loader.exec_module(laser_module)
         LaserParameterGenerator = laser_module.LaserParameterGenerator
         
-        spec_ispm = importlib.util.spec_from_file_location("generation.sensors.ispm_generator", ispm_gen_path)
-        ispm_module = importlib.util.module_from_spec(spec_ispm)
-        ispm_module.__package__ = 'generation.sensors'
-        spec_ispm.loader.exec_module(ispm_module)
-        ISPMGenerator = ispm_module.ISPMGenerator
+        spec_ispm_thermal = importlib.util.spec_from_file_location("generation.sensors.ispm_thermal_generator", ispm_thermal_gen_path)
+        ispm_thermal_module = importlib.util.module_from_spec(spec_ispm_thermal)
+        ispm_thermal_module.__package__ = 'generation.sensors'
+        spec_ispm_thermal.loader.exec_module(ispm_thermal_module)
+        ISPMThermalGenerator = ispm_thermal_module.ISPMThermalGenerator
+        
+        spec_ispm_optical = importlib.util.spec_from_file_location("generation.sensors.ispm_optical_generator", ispm_optical_gen_path)
+        ispm_optical_module = importlib.util.module_from_spec(spec_ispm_optical)
+        ispm_optical_module.__package__ = 'generation.sensors'
+        spec_ispm_optical.loader.exec_module(ispm_optical_module)
+        ISPMOpticalGenerator = ispm_optical_module.ISPMOpticalGenerator
+        
+        spec_ispm_acoustic = importlib.util.spec_from_file_location("generation.sensors.ispm_acoustic_generator", ispm_acoustic_gen_path)
+        ispm_acoustic_module = importlib.util.module_from_spec(spec_ispm_acoustic)
+        ispm_acoustic_module.__package__ = 'generation.sensors'
+        spec_ispm_acoustic.loader.exec_module(ispm_acoustic_module)
+        ISPMAcousticGenerator = ispm_acoustic_module.ISPMAcousticGenerator
+        
+        spec_ispm_strain = importlib.util.spec_from_file_location("generation.sensors.ispm_strain_generator", ispm_strain_gen_path)
+        ispm_strain_module = importlib.util.module_from_spec(spec_ispm_strain)
+        ispm_strain_module.__package__ = 'generation.sensors'
+        spec_ispm_strain.loader.exec_module(ispm_strain_module)
+        ISPMStrainGenerator = ispm_strain_module.ISPMStrainGenerator
+        
+        spec_ispm_plume = importlib.util.spec_from_file_location("generation.sensors.ispm_plume_generator", ispm_plume_gen_path)
+        ispm_plume_module = importlib.util.module_from_spec(spec_ispm_plume)
+        ispm_plume_module.__package__ = 'generation.sensors'
+        spec_ispm_plume.loader.exec_module(ispm_plume_module)
+        ISPMPlumeGenerator = ispm_plume_module.ISPMPlumeGenerator
         
         spec_ct = importlib.util.spec_from_file_location("generation.sensors.ct_scan_generator", ct_gen_path)
         ct_module = importlib.util.module_from_spec(spec_ct)
@@ -161,8 +193,8 @@ def delete_existing_data(mongo_client: Any,
     Returns:
         Dictionary with deletion summary
     """
-    collections_to_clean = collections or ['stl_models', 'hatching_layers', 'laser_parameters', 
-                                          'ct_scan_data', 'ispm_monitoring_data']
+    collections_to_clean = collections or ['stl_models', 'hatching_layers', 'laser_monitoring_data', 
+                                          'ct_scan_data', 'ispm_thermal_monitoring_data', 'ispm_optical_monitoring_data', 'ispm_acoustic_monitoring_data', 'ispm_strain_monitoring_data', 'ispm_plume_monitoring_data']
     
     results = {}
     
@@ -360,14 +392,18 @@ def populate_mongodb(n_models: Optional[int] = None,
     # Initialize remaining generators
     hatching_gen = HatchingGenerator()
     laser_gen = LaserParameterGenerator()
-    ispm_gen = ISPMGenerator()
+    ispm_thermal_gen = ISPMThermalGenerator()
+    ispm_optical_gen = ISPMOpticalGenerator()
+    ispm_acoustic_gen = ISPMAcousticGenerator()
+    ispm_strain_gen = ISPMStrainGenerator()
+    ispm_plume_gen = ISPMPlumeGenerator()
     ct_gen = CTScanGenerator()
     
     print(f"📦 Processing {len(stl_paths)} STL file(s)...")
     
     results = []
-    collections_to_populate = collections or ['stl_models', 'hatching_layers', 'laser_parameters', 
-                                               'ct_scan_data', 'ispm_monitoring_data']
+    collections_to_populate = collections or ['stl_models', 'hatching_layers', 'laser_monitoring_data', 
+                                               'ct_scan_data', 'ispm_thermal_monitoring_data', 'ispm_optical_monitoring_data', 'ispm_acoustic_monitoring_data', 'ispm_strain_monitoring_data', 'ispm_plume_monitoring_data']
     
     for i, stl_path in enumerate(stl_paths):
         model_id = None  # Initialize in case of early error
@@ -421,122 +457,62 @@ def populate_mongodb(n_models: Optional[int] = None,
                     # Generate hatching - HatchingGenerator does all the work
                     hatching_result = hatching_gen.generate_hatching(stl_part)
                     
-                    # Extract points, power, velocity, energy from result
-                    all_points = hatching_result.get('points', np.array([]))
-                    all_power = hatching_result.get('power', np.array([]))
-                    all_velocity = hatching_result.get('velocity', np.array([]))
-                    all_energy = hatching_result.get('energy', np.array([]))
-                    
                     # Get laser beam parameters from metadata (calculated by HatchingGenerator)
                     metadata = hatching_result['metadata']
                     laser_beam_width = metadata.get('laser_beam_width', 0.1)
                     hatch_spacing = metadata.get('hatch_spacing', 0.1)
                     overlap_percentage = metadata.get('overlap_percentage', 0.0)
                     overlap_ratio = metadata.get('overlap_ratio', 0.0)
+                    layer_thickness = metadata.get('layer_thickness', 0.05)
                     
                     # Get coordinate system information (critical for merging with other data sources)
                     coordinate_system = metadata.get('coordinate_system', None)
                     
-                    # Check if we have points
-                    if len(all_points) == 0:
-                        print(f"   ⚠️  No points extracted from hatching")
+                    # Extract vectors directly from pyslm layers (new vector-based format)
+                    # This preserves the exact structure from pyslm (pairs for hatches, sequences for contours)
+                    layers = hatching_result['layers']
+                    vector_layers = hatching_gen.extract_vectors(layers, hatching_gen.config)
+                    
+                    if len(vector_layers) == 0:
+                        print(f"   ⚠️  No vectors extracted from hatching")
                     else:
-                        # Group points by layer (z-coordinate)
+                        # Prepare documents in vector-based format
                         hatching_docs = []
-                        for layer_idx, layer in enumerate(hatching_result['layers']):
-                            z_height = layer.z / 1000.0  # Convert from microns to mm
-                            z_tolerance = 0.001  # 1 micron tolerance
-                            
-                            # Find all points for this layer (matching z-coordinate)
-                            layer_mask = np.abs(all_points[:, 2] - z_height) < z_tolerance
-                            layer_points = all_points[layer_mask]
-                            layer_power = all_power[layer_mask] if len(all_power) > 0 else np.array([])
-                            layer_velocity = all_velocity[layer_mask] if len(all_velocity) > 0 else np.array([])
-                            layer_energy = all_energy[layer_mask] if len(all_energy) > 0 else np.array([])
-                            
-                            # Group points into hatch paths (sequential points form a hatch)
-                            hatches = []
-                            if len(layer_points) > 0:
-                                # Group consecutive points into hatch segments
-                                current_hatch = []
-                                current_power = layer_power[0] if len(layer_power) > 0 else 200.0
-                                current_velocity = layer_velocity[0] if len(layer_velocity) > 0 else 500.0
-                                
-                                for i, point in enumerate(layer_points):
-                                    if len(current_hatch) == 0:
-                                        current_hatch = [point.tolist()]
-                                        if i < len(layer_power):
-                                            current_power = float(layer_power[i])
-                                        if i < len(layer_velocity):
-                                            current_velocity = float(layer_velocity[i])
-                                    else:
-                                        # Check if point continues the current hatch (within tolerance)
-                                        last_point = current_hatch[-1]
-                                        distance = np.linalg.norm(np.array(point[:2]) - np.array(last_point[:2]))
-                                        
-                                        if distance < 2.0:  # Points within 2mm are part of same hatch
-                                            current_hatch.append(point.tolist())
-                                        else:
-                                            # End current hatch, start new one
-                                            if len(current_hatch) > 1:
-                                                hatches.append({
-                                                    'start_point': current_hatch[0],
-                                                    'end_point': current_hatch[-1],
-                                                    'points': current_hatch,  # Full path coordinates
-                                                    'laser_power': current_power,
-                                                    'scan_speed': current_velocity,
-                                                    'energy_density': float(layer_energy[i-1]) if i-1 < len(layer_energy) else current_power / (current_velocity * 0.1),
-                                                    'laser_beam_width': laser_beam_width,  # mm - critical for overlap calculation
-                                                    'hatch_spacing': hatch_spacing,  # mm - spacing between hatch lines
-                                                    'overlap_percentage': overlap_percentage,  # % - overlap between consecutive hatches
-                                                    'hatch_type': 'raster',
-                                                    'scan_order': len(hatches)
-                                                })
-                                            current_hatch = [point.tolist()]
-                                            if i < len(layer_power):
-                                                current_power = float(layer_power[i])
-                                            if i < len(layer_velocity):
-                                                current_velocity = float(layer_velocity[i])
-                                
-                                # Add final hatch
-                                if len(current_hatch) > 1:
-                                    hatches.append({
-                                        'start_point': current_hatch[0],
-                                        'end_point': current_hatch[-1],
-                                        'points': current_hatch,  # Full path coordinates
-                                        'laser_power': current_power,
-                                        'scan_speed': current_velocity,
-                                        'energy_density': float(layer_energy[-1]) if len(layer_energy) > 0 else current_power / (current_velocity * 0.1),
-                                        'laser_beam_width': laser_beam_width,  # mm - critical for overlap calculation
-                                        'hatch_spacing': hatch_spacing,  # mm - spacing between hatch lines
-                                        'overlap_percentage': overlap_percentage,  # % - overlap between consecutive hatches
-                                        'hatch_type': 'raster',
-                                        'scan_order': len(hatches)
-                                    })
                         
-                            hatching_docs.append({
+                        for layer_data in vector_layers:
+                            layer_idx = layer_data['layer_index']
+                            z_height = layer_data['z_position']
+                            vectors = layer_data['vectors']
+                            vectordata = layer_data['vectordata']
+                            
+                            # Create document in vector-based format (matches the JSON structure you provided)
+                            doc = {
                                 'model_id': model_id,
                                 'layer_index': layer_idx,
-                                'layer_height': hatching_result['metadata']['layer_thickness'],
+                                'layer_height': layer_thickness,
                                 'z_position': z_height,
-                                'contours': [],  # Contours can be extracted separately if needed
-                                'hatches': hatches,  # Laser path coordinates with parameters
+                                'length': len(vectors),  # Total number of vectors
+                                'vectors': vectors,  # Array of {x1, y1, x2, y2, z, timestamp, dataindex}
+                                'vectordata': vectordata,  # Array of {dataindex, partid, type, scanner, laserpower, scannerspeed, laser_beam_width, hatch_spacing, layer_index, etc.}
                                 'processing_time': datetime.now().isoformat(),
                                 'coordinate_system': coordinate_system,  # Critical for merging with ISPM/CT data
                                 'metadata': {
-                                    'n_contours': 0,
-                                    'n_hatches': len(hatches),
-                                    'n_points': len(layer_points),
+                                    'n_vectors': len(vectors),
+                                    'n_vectordata': len(vectordata),
                                     'hatch_spacing': hatch_spacing,
                                     'laser_beam_width': laser_beam_width,
                                     'overlap_percentage': overlap_percentage,
-                                    'overlap_ratio': overlap_ratio  # 0.0 to 1.0 for calculations
+                                    'overlap_ratio': overlap_ratio,  # 0.0 to 1.0 for calculations
+                                    'layer_thickness': layer_thickness
                                 }
-                            })
+                            }
+                            
+                            hatching_docs.append(doc)
                         
                         if hatching_docs:
                             mongo_client.insert_documents('hatching_layers', hatching_docs)
-                            print(f"   ✅ Stored {len(hatching_docs)} hatching layers")
+                            total_vectors = sum(doc['length'] for doc in hatching_docs)
+                            print(f"   ✅ Stored {len(hatching_docs)} hatching layers with {total_vectors} total vectors")
                         else:
                             print(f"   ⚠️  No hatching layers generated")
                         
@@ -547,7 +523,7 @@ def populate_mongodb(n_models: Optional[int] = None,
                     logger.error(f"Hatching generation error: {e}", exc_info=True)
             
             # 3. Generate and store laser parameters
-            if 'laser_parameters' in collections_to_populate:
+            if 'laser_monitoring_data' in collections_to_populate:
                 bbox = stl_metadata.get('bounding_box', {})
                 if bbox:
                     n_layers = int((bbox['max'][2] - bbox['min'][2]) / 0.05)
@@ -556,10 +532,11 @@ def populate_mongodb(n_models: Optional[int] = None,
                         'min': tuple(bbox['min']),
                         'max': tuple(bbox['max'])
                     }
+                    # 100 points per layer: each point gets correct layer_index 0..n_layers-1 (no fallback in query)
                     laser_data = laser_gen.generate_for_build(
                         build_id=model_id,
                         n_layers=n_layers,
-                        points_per_layer=1000,
+                        points_per_layer=100,
                         bounding_box=laser_bbox
                     )
                     
@@ -569,22 +546,73 @@ def populate_mongodb(n_models: Optional[int] = None,
                     all_laser_points = laser_data.get('points', [])
                     for point in all_laser_points:
                         # point is a LaserParameterPoint dataclass
-                        laser_docs.append({
+                        # layer_index and spatial_coordinates are required for query client and 2D Analysis Panel 4 (signal vs layer)
+                        doc = {
                             'model_id': model_id,
                             'layer_index': point.layer_index,
                             'point_id': f"{model_id}_lp_{len(laser_docs)}",
                             'spatial_coordinates': [point.x, point.y, point.z],
-                            'laser_power': point.laser_power,
-                            'scan_speed': point.scan_speed,
+                            # Process Parameters (setpoints/commanded values)
+                            'commanded_power': point.commanded_power,  # Setpoint/commanded power
+                            'commanded_scan_speed': point.commanded_scan_speed,  # Setpoint/commanded speed
                             'hatch_spacing': point.hatch_spacing,
                             'energy_density': point.energy_density,
                             'exposure_time': point.exposure_time,  # Time to scan one hatch spacing
-                            'timestamp': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
-                            'region_type': point.region_type
-                        })
+                            'region_type': point.region_type,
+                            'timestamp': _timestamp_to_float(point.timestamp),
+                            'timestamp_iso': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
+                        }
+                        
+                        # Temporal Sensors - Laser Power (Category 3.1)
+                        if point.actual_power is not None:
+                            doc['actual_power'] = point.actual_power
+                        if point.power_setpoint is not None:
+                            doc['power_setpoint'] = point.power_setpoint
+                        if point.power_error is not None:
+                            doc['power_error'] = point.power_error
+                        if point.power_stability is not None:
+                            doc['power_stability'] = point.power_stability
+                        if point.power_fluctuation_amplitude is not None:
+                            doc['power_fluctuation_amplitude'] = point.power_fluctuation_amplitude
+                        if point.power_fluctuation_frequency is not None:
+                            doc['power_fluctuation_frequency'] = point.power_fluctuation_frequency
+                        
+                        # Temporal Sensors - Beam Temporal Characteristics (Category 3.2)
+                        if point.pulse_frequency is not None:
+                            doc['pulse_frequency'] = point.pulse_frequency
+                        if point.pulse_duration is not None:
+                            doc['pulse_duration'] = point.pulse_duration
+                        if point.pulse_energy is not None:
+                            doc['pulse_energy'] = point.pulse_energy
+                        if point.duty_cycle is not None:
+                            doc['duty_cycle'] = point.duty_cycle
+                        if point.beam_modulation_frequency is not None:
+                            doc['beam_modulation_frequency'] = point.beam_modulation_frequency
+                        
+                        # Temporal Sensors - Laser System Health (Category 3.3)
+                        if point.laser_temperature is not None:
+                            doc['laser_temperature'] = point.laser_temperature
+                        if point.laser_cooling_water_temp is not None:
+                            doc['laser_cooling_water_temp'] = point.laser_cooling_water_temp
+                        if point.laser_cooling_flow_rate is not None:
+                            doc['laser_cooling_flow_rate'] = point.laser_cooling_flow_rate
+                        if point.laser_power_supply_voltage is not None:
+                            doc['laser_power_supply_voltage'] = point.laser_power_supply_voltage
+                        if point.laser_power_supply_current is not None:
+                            doc['laser_power_supply_current'] = point.laser_power_supply_current
+                        if point.laser_diode_current is not None:
+                            doc['laser_diode_current'] = point.laser_diode_current
+                        if point.laser_diode_temperature is not None:
+                            doc['laser_diode_temperature'] = point.laser_diode_temperature
+                        if point.laser_operating_hours is not None:
+                            doc['laser_operating_hours'] = point.laser_operating_hours
+                        if point.laser_pulse_count is not None:
+                            doc['laser_pulse_count'] = point.laser_pulse_count
+                        
+                        laser_docs.append(doc)
                     
                     if laser_docs:
-                        mongo_client.insert_documents('laser_parameters', laser_docs)
+                        mongo_client.insert_documents('laser_monitoring_data', laser_docs)
                         print(f"   ✅ Stored {len(laser_docs)} laser parameter points")
             
             # 4. Generate and store CT scan data
@@ -714,7 +742,7 @@ def populate_mongodb(n_models: Optional[int] = None,
                     print(f"   ✅ Stored CT scan data (arrays in GridFS: density={density_values_gridfs_id is not None}, porosity={porosity_map_gridfs_id is not None})")
             
             # 5. Generate and store ISPM data
-            if 'ispm_monitoring_data' in collections_to_populate:
+            if 'ispm_thermal_monitoring_data' in collections_to_populate:
                 bbox = stl_metadata.get('bounding_box', {})
                 if bbox:
                     # Convert bounding box format for ISPM generator
@@ -726,9 +754,9 @@ def populate_mongodb(n_models: Optional[int] = None,
                     n_layers = int((bbox['max'][2] - bbox['min'][2]) / 0.05)
                     # Reduce data generation for demo to avoid memory issues
                     # In production, use batching or GridFS for large datasets
-                    from generation.sensors.ispm_generator import ISPMGeneratorConfig
-                    ispm_config = ISPMGeneratorConfig(points_per_layer=25)  # Reduced from 1000 to 25 for demo
-                    ispm_gen_demo = ISPMGenerator(config=ispm_config)
+                    from generation.sensors.ispm_thermal_generator import ISPMThermalGeneratorConfig
+                    ispm_config = ISPMThermalGeneratorConfig(points_per_layer=100)  # 100 points per layer; layer_index 0..n_layers-1
+                    ispm_gen_demo = ISPMThermalGenerator(config=ispm_config)
                     
                     ispm_data = ispm_gen_demo.generate_for_build(
                         build_id=model_id,
@@ -753,11 +781,12 @@ def populate_mongodb(n_models: Optional[int] = None,
                             ispm_docs = []
                             
                             for point in batch_points:
-                                # point is an ISPMDataPoint dataclass
-                                ispm_docs.append({
+                                # point is an ISPMThermalDataPoint dataclass
+                                ispm_doc = {
                                     'model_id': model_id,
                                     'layer_index': point.layer_index,
-                                    'timestamp': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
+                                    'timestamp': _timestamp_to_float(point.timestamp),
+                                    'timestamp_iso': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
                                     'spatial_coordinates': [point.x, point.y, point.z],
                                     'melt_pool_temperature': point.melt_pool_temperature,
                                     'melt_pool_size': point.melt_pool_size,  # Dict with width, length, depth
@@ -766,16 +795,435 @@ def populate_mongodb(n_models: Optional[int] = None,
                                     'temperature_gradient': point.temperature_gradient,
                                     'process_event': point.process_event,
                                     'coordinate_system': coordinate_system
-                                })
+                                }
+                                
+                                # Add additional ISPM fields from research (if available)
+                                if point.melt_pool_area is not None:
+                                    ispm_doc['melt_pool_area'] = point.melt_pool_area
+                                if point.melt_pool_eccentricity is not None:
+                                    ispm_doc['melt_pool_eccentricity'] = point.melt_pool_eccentricity
+                                if point.melt_pool_perimeter is not None:
+                                    ispm_doc['melt_pool_perimeter'] = point.melt_pool_perimeter
+                                if point.time_over_threshold_1200K is not None:
+                                    ispm_doc['time_over_threshold_1200K'] = point.time_over_threshold_1200K
+                                if point.time_over_threshold_1680K is not None:
+                                    ispm_doc['time_over_threshold_1680K'] = point.time_over_threshold_1680K
+                                if point.time_over_threshold_2400K is not None:
+                                    ispm_doc['time_over_threshold_2400K'] = point.time_over_threshold_2400K
+                                
+                                ispm_docs.append(ispm_doc)
                             
                             if ispm_docs:
-                                mongo_client.insert_documents('ispm_monitoring_data', ispm_docs)
+                                mongo_client.insert_documents('ispm_thermal_monitoring_data', ispm_docs)
                                 total_inserted += len(ispm_docs)
                                 print(f"   📊 Inserted batch: {total_inserted}/{len(all_data_points)} ISPM records...", end='\r')
                         
-                        print(f"\n   ✅ Stored {total_inserted} ISPM monitoring records")
+                        print(f"\n   ✅ Stored {total_inserted} ISPM thermal monitoring records")
                     else:
-                        print(f"   ⚠️  No ISPM data points generated")
+                        print(f"   ⚠️  No ISPM thermal data points generated")
+            
+            # 6. Generate and store ISPM_Optical data
+            if 'ispm_optical_monitoring_data' in collections_to_populate:
+                bbox = stl_metadata.get('bounding_box', {})
+                if bbox:
+                    # Convert bounding box format for ISPM optical generator
+                    bbox_dict = {
+                        'x': (bbox['min'][0], bbox['max'][0]),
+                        'y': (bbox['min'][1], bbox['max'][1]),
+                        'z': (bbox['min'][2], bbox['max'][2])
+                    }
+                    n_layers = int((bbox['max'][2] - bbox['min'][2]) / 0.05)
+                    # Reduce data generation for demo to avoid memory issues
+                    # In production, use batching or GridFS for large datasets
+                    from generation.sensors.ispm_optical_generator import ISPMOpticalGeneratorConfig
+                    ispm_optical_config = ISPMOpticalGeneratorConfig(points_per_layer=100)  # 100 points per layer; layer_index 0..n_layers-1
+                    ispm_optical_gen_demo = ISPMOpticalGenerator(config=ispm_optical_config)
+                    
+                    ispm_optical_data = ispm_optical_gen_demo.generate_for_build(
+                        build_id=model_id,
+                        n_layers=n_layers,
+                        bounding_box=bbox_dict
+                    )
+                    
+                    # Get coordinate system information (critical for merging with STL/hatching/CT data)
+                    coordinate_system = ispm_optical_data.get('coordinate_system', None)
+                    
+                    # Convert to MongoDB documents in batches to avoid memory issues
+                    # ispm_optical_data['data_points'] is a list of ISPMOpticalDataPoint objects
+                    all_data_points = ispm_optical_data.get('data_points', [])
+                    
+                    if all_data_points:
+                        # Batch size for insertion (to avoid memory issues)
+                        batch_size = 10000
+                        total_inserted = 0
+                        
+                        for batch_start in range(0, len(all_data_points), batch_size):
+                            batch_points = all_data_points[batch_start:batch_start + batch_size]
+                            ispm_optical_docs = []
+                            
+                            for point in batch_points:
+                                # point is an ISPMOpticalDataPoint dataclass
+                                ispm_optical_doc = {
+                                    'model_id': model_id,
+                                    'layer_index': point.layer_index,
+                                    'timestamp': _timestamp_to_float(point.timestamp),
+                                    'timestamp_iso': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
+                                    'spatial_coordinates': [point.x, point.y, point.z],
+                                    # Photodiode signals
+                                    'photodiode_intensity': point.photodiode_intensity,
+                                    'photodiode_frequency': point.photodiode_frequency,
+                                    'photodiode_coaxial': point.photodiode_coaxial,
+                                    'photodiode_off_axis': point.photodiode_off_axis,
+                                    # Melt pool brightness/intensity
+                                    'melt_pool_brightness': point.melt_pool_brightness,
+                                    'melt_pool_intensity_mean': point.melt_pool_intensity_mean,
+                                    'melt_pool_intensity_max': point.melt_pool_intensity_max,
+                                    'melt_pool_intensity_std': point.melt_pool_intensity_std,
+                                    # Spatter detection
+                                    'spatter_detected': point.spatter_detected,
+                                    'spatter_intensity': point.spatter_intensity,
+                                    'spatter_count': point.spatter_count,
+                                    # Process stability
+                                    'process_stability': point.process_stability,
+                                    'intensity_variation': point.intensity_variation,
+                                    'signal_to_noise_ratio': point.signal_to_noise_ratio,
+                                    # Melt pool imaging
+                                    'melt_pool_image_available': point.melt_pool_image_available,
+                                    'melt_pool_area_pixels': point.melt_pool_area_pixels,
+                                    'melt_pool_centroid_x': point.melt_pool_centroid_x,
+                                    'melt_pool_centroid_y': point.melt_pool_centroid_y,
+                                    # Keyhole detection
+                                    'keyhole_detected': point.keyhole_detected,
+                                    'keyhole_intensity': point.keyhole_intensity,
+                                    # Process events
+                                    'process_event': point.process_event,
+                                    # Frequency domain features
+                                    'dominant_frequency': point.dominant_frequency,
+                                    'frequency_bandwidth': point.frequency_bandwidth,
+                                    'spectral_energy': point.spectral_energy,
+                                    'coordinate_system': coordinate_system
+                                }
+                                
+                                ispm_optical_docs.append(ispm_optical_doc)
+                            
+                            if ispm_optical_docs:
+                                mongo_client.insert_documents('ispm_optical_monitoring_data', ispm_optical_docs)
+                                total_inserted += len(ispm_optical_docs)
+                                print(f"   📊 Inserted batch: {total_inserted}/{len(all_data_points)} ISPM optical records...", end='\r')
+                        
+                        print(f"\n   ✅ Stored {total_inserted} ISPM optical monitoring records")
+                    else:
+                        print(f"   ⚠️  No ISPM optical data points generated")
+            
+            # 7. Generate and store ISPM_Acoustic data
+            if 'ispm_acoustic_monitoring_data' in collections_to_populate:
+                bbox = stl_metadata.get('bounding_box', {})
+                if bbox:
+                    # Convert bounding box format for ISPM acoustic generator
+                    bbox_dict = {
+                        'x': (bbox['min'][0], bbox['max'][0]),
+                        'y': (bbox['min'][1], bbox['max'][1]),
+                        'z': (bbox['min'][2], bbox['max'][2])
+                    }
+                    n_layers = int((bbox['max'][2] - bbox['min'][2]) / 0.05)
+                    # Reduce data generation for demo to avoid memory issues
+                    # In production, use batching or GridFS for large datasets
+                    from generation.sensors.ispm_acoustic_generator import ISPMAcousticGeneratorConfig
+                    ispm_acoustic_config = ISPMAcousticGeneratorConfig(points_per_layer=100)  # 100 points per layer; layer_index 0..n_layers-1
+                    ispm_acoustic_gen_demo = ISPMAcousticGenerator(config=ispm_acoustic_config)
+                    
+                    ispm_acoustic_data = ispm_acoustic_gen_demo.generate_for_build(
+                        build_id=model_id,
+                        n_layers=n_layers,
+                        bounding_box=bbox_dict
+                    )
+                    
+                    # Get coordinate system information (critical for merging with STL/hatching/CT data)
+                    coordinate_system = ispm_acoustic_data.get('coordinate_system', None)
+                    
+                    # Convert to MongoDB documents in batches to avoid memory issues
+                    # ispm_acoustic_data['data_points'] is a list of ISPMAcousticDataPoint objects
+                    all_data_points = ispm_acoustic_data.get('data_points', [])
+                    
+                    if all_data_points:
+                        # Batch size for insertion (to avoid memory issues)
+                        batch_size = 10000
+                        total_inserted = 0
+                        
+                        for batch_start in range(0, len(all_data_points), batch_size):
+                            batch_points = all_data_points[batch_start:batch_start + batch_size]
+                            ispm_acoustic_docs = []
+                            
+                            for point in batch_points:
+                                # point is an ISPMAcousticDataPoint dataclass
+                                ispm_acoustic_doc = {
+                                    'model_id': model_id,
+                                    'layer_index': point.layer_index,
+                                    'timestamp': _timestamp_to_float(point.timestamp),
+                                    'timestamp_iso': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
+                                    'spatial_coordinates': [point.x, point.y, point.z],
+                                    # Acoustic emission signals
+                                    'acoustic_amplitude': point.acoustic_amplitude,
+                                    'acoustic_frequency': point.acoustic_frequency,
+                                    'acoustic_rms': point.acoustic_rms,
+                                    'acoustic_peak': point.acoustic_peak,
+                                    # Frequency domain features
+                                    'dominant_frequency': point.dominant_frequency,
+                                    'frequency_bandwidth': point.frequency_bandwidth,
+                                    'spectral_centroid': point.spectral_centroid,
+                                    'spectral_energy': point.spectral_energy,
+                                    'spectral_rolloff': point.spectral_rolloff,
+                                    # Event detection
+                                    'spatter_event_detected': point.spatter_event_detected,
+                                    'spatter_event_amplitude': point.spatter_event_amplitude,
+                                    'defect_event_detected': point.defect_event_detected,
+                                    'defect_event_amplitude': point.defect_event_amplitude,
+                                    'anomaly_detected': point.anomaly_detected,
+                                    'anomaly_type': point.anomaly_type,
+                                    # Process stability
+                                    'process_stability': point.process_stability,
+                                    'acoustic_variation': point.acoustic_variation,
+                                    'signal_to_noise_ratio': point.signal_to_noise_ratio,
+                                    # Time-domain features
+                                    'zero_crossing_rate': point.zero_crossing_rate,
+                                    'autocorrelation_peak': point.autocorrelation_peak,
+                                    # Frequency-domain features
+                                    'harmonic_ratio': point.harmonic_ratio,
+                                    'spectral_flatness': point.spectral_flatness,
+                                    'spectral_crest': point.spectral_crest,
+                                    # Process events
+                                    'process_event': point.process_event,
+                                    # Acoustic energy
+                                    'acoustic_energy': point.acoustic_energy,
+                                    'energy_per_band': point.energy_per_band,
+                                    'coordinate_system': coordinate_system
+                                }
+                                
+                                ispm_acoustic_docs.append(ispm_acoustic_doc)
+                            
+                            if ispm_acoustic_docs:
+                                mongo_client.insert_documents('ispm_acoustic_monitoring_data', ispm_acoustic_docs)
+                                total_inserted += len(ispm_acoustic_docs)
+                                print(f"   📊 Inserted batch: {total_inserted}/{len(all_data_points)} ISPM acoustic records...", end='\r')
+                        
+                        print(f"\n   ✅ Stored {total_inserted} ISPM acoustic monitoring records")
+                    else:
+                        print(f"   ⚠️  No ISPM acoustic data points generated")
+            
+            # 8. Generate and store ISPM_Strain data
+            if 'ispm_strain_monitoring_data' in collections_to_populate:
+                bbox = stl_metadata.get('bounding_box', {})
+                if bbox:
+                    # Convert bounding box format for ISPM strain generator
+                    bbox_dict = {
+                        'x': (bbox['min'][0], bbox['max'][0]),
+                        'y': (bbox['min'][1], bbox['max'][1]),
+                        'z': (bbox['min'][2], bbox['max'][2])
+                    }
+                    n_layers = int((bbox['max'][2] - bbox['min'][2]) / 0.05)
+                    # Reduce data generation for demo to avoid memory issues
+                    # In production, use batching or GridFS for large datasets
+                    from generation.sensors.ispm_strain_generator import ISPMStrainGeneratorConfig
+                    ispm_strain_config = ISPMStrainGeneratorConfig(points_per_layer=100)  # 100 points per layer; layer_index 0..n_layers-1
+                    ispm_strain_gen_demo = ISPMStrainGenerator(config=ispm_strain_config)
+                    
+                    ispm_strain_data = ispm_strain_gen_demo.generate_for_build(
+                        build_id=model_id,
+                        n_layers=n_layers,
+                        layer_thickness=0.05,
+                        start_time=datetime.now(),
+                        bounding_box=bbox_dict
+                    )
+                    
+                    # Get coordinate system information (critical for merging with STL/hatching/CT data)
+                    coordinate_system = ispm_strain_data.get('coordinate_system', None)
+                    
+                    # Convert to MongoDB documents in batches to avoid memory issues
+                    # ispm_strain_data['data_points'] is a list of ISPMStrainDataPoint objects
+                    all_data_points = ispm_strain_data.get('data_points', [])
+                    
+                    if all_data_points:
+                        # Batch size for insertion (to avoid memory issues)
+                        batch_size = 10000
+                        total_inserted = 0
+                        
+                        for batch_start in range(0, len(all_data_points), batch_size):
+                            batch_points = all_data_points[batch_start:batch_start + batch_size]
+                            ispm_strain_docs = []
+                            
+                            for point in batch_points:
+                                # point is an ISPMStrainDataPoint dataclass
+                                ispm_strain_doc = {
+                                    'model_id': model_id,
+                                    'layer_index': point.layer_index,
+                                    'timestamp': _timestamp_to_float(point.timestamp),
+                                    'timestamp_iso': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
+                                    'spatial_coordinates': [point.x, point.y, point.z],
+                                    # Strain components
+                                    'strain_xx': point.strain_xx,
+                                    'strain_yy': point.strain_yy,
+                                    'strain_zz': point.strain_zz,
+                                    'strain_xy': point.strain_xy,
+                                    'strain_xz': point.strain_xz,
+                                    'strain_yz': point.strain_yz,
+                                    # Principal strains
+                                    'principal_strain_max': point.principal_strain_max,
+                                    'principal_strain_min': point.principal_strain_min,
+                                    'principal_strain_intermediate': point.principal_strain_intermediate,
+                                    # Von Mises strain
+                                    'von_mises_strain': point.von_mises_strain,
+                                    # Displacement
+                                    'displacement_x': point.displacement_x,
+                                    'displacement_y': point.displacement_y,
+                                    'displacement_z': point.displacement_z,
+                                    'total_displacement': point.total_displacement,
+                                    # Strain rate
+                                    'strain_rate': point.strain_rate,
+                                    # Residual stress
+                                    'residual_stress_xx': point.residual_stress_xx,
+                                    'residual_stress_yy': point.residual_stress_yy,
+                                    'residual_stress_zz': point.residual_stress_zz,
+                                    'von_mises_stress': point.von_mises_stress,
+                                    # Temperature-compensated strain
+                                    'temperature_compensated_strain': point.temperature_compensated_strain,
+                                    # Warping/distortion
+                                    'warping_detected': point.warping_detected,
+                                    'warping_magnitude': point.warping_magnitude,
+                                    'distortion_angle': point.distortion_angle,
+                                    # Layer-wise strain accumulation
+                                    'cumulative_strain': point.cumulative_strain,
+                                    'layer_strain_increment': point.layer_strain_increment,
+                                    # Event detection
+                                    'excessive_strain_event': point.excessive_strain_event,
+                                    'warping_event_detected': point.warping_event_detected,
+                                    'distortion_event_detected': point.distortion_event_detected,
+                                    'anomaly_detected': point.anomaly_detected,
+                                    'anomaly_type': point.anomaly_type,
+                                    # Process stability
+                                    'process_stability': point.process_stability,
+                                    'strain_variation': point.strain_variation,
+                                    'strain_uniformity': point.strain_uniformity,
+                                    # Process events
+                                    'process_event': point.process_event,
+                                    # Strain energy
+                                    'strain_energy_density': point.strain_energy_density,
+                                    'coordinate_system': coordinate_system
+                                }
+                                
+                                ispm_strain_docs.append(ispm_strain_doc)
+                            
+                            if ispm_strain_docs:
+                                mongo_client.insert_documents('ispm_strain_monitoring_data', ispm_strain_docs)
+                                total_inserted += len(ispm_strain_docs)
+                                print(f"   📊 Inserted batch: {total_inserted}/{len(all_data_points)} ISPM strain records...", end='\r')
+                        
+                        print(f"\n   ✅ Stored {total_inserted} ISPM strain monitoring records")
+                    else:
+                        print(f"   ⚠️  No ISPM strain data points generated")
+            
+            # 9. Generate and store ISPM_Plume data
+            if 'ispm_plume_monitoring_data' in collections_to_populate:
+                bbox = stl_metadata.get('bounding_box', {})
+                if bbox:
+                    # Convert bounding box format for ISPM plume generator
+                    bbox_dict = {
+                        'x': (bbox['min'][0], bbox['max'][0]),
+                        'y': (bbox['min'][1], bbox['max'][1]),
+                        'z': (bbox['min'][2], bbox['max'][2])
+                    }
+                    n_layers = int((bbox['max'][2] - bbox['min'][2]) / 0.05)
+                    # Reduce data generation for demo to avoid memory issues
+                    # In production, use batching or GridFS for large datasets
+                    from generation.sensors.ispm_plume_generator import ISPMPlumeGeneratorConfig
+                    ispm_plume_config = ISPMPlumeGeneratorConfig(points_per_layer=100)  # 100 points per layer; layer_index 0..n_layers-1
+                    ispm_plume_gen_demo = ISPMPlumeGenerator(config=ispm_plume_config)
+                    
+                    ispm_plume_data = ispm_plume_gen_demo.generate_for_build(
+                        build_id=model_id,
+                        n_layers=n_layers,
+                        layer_thickness=0.05,
+                        start_time=datetime.now(),
+                        bounding_box=bbox_dict
+                    )
+                    
+                    # Get coordinate system information (critical for merging with STL/hatching/CT data)
+                    coordinate_system = ispm_plume_data.get('coordinate_system', None)
+                    
+                    # Convert to MongoDB documents in batches to avoid memory issues
+                    # ispm_plume_data['data_points'] is a list of ISPMPlumeDataPoint objects
+                    all_data_points = ispm_plume_data.get('data_points', [])
+                    
+                    if all_data_points:
+                        # Batch size for insertion (to avoid memory issues)
+                        batch_size = 10000
+                        total_inserted = 0
+                        
+                        for batch_start in range(0, len(all_data_points), batch_size):
+                            batch_points = all_data_points[batch_start:batch_start + batch_size]
+                            ispm_plume_docs = []
+                            
+                            for point in batch_points:
+                                # point is an ISPMPlumeDataPoint dataclass
+                                ispm_plume_doc = {
+                                    'model_id': model_id,
+                                    'layer_index': point.layer_index,
+                                    'timestamp': _timestamp_to_float(point.timestamp),
+                                    'timestamp_iso': point.timestamp.isoformat() if isinstance(point.timestamp, datetime) else str(point.timestamp),
+                                    'spatial_coordinates': [point.x, point.y, point.z],
+                                    # Plume characteristics
+                                    'plume_intensity': point.plume_intensity,
+                                    'plume_density': point.plume_density,
+                                    'plume_temperature': point.plume_temperature,
+                                    'plume_velocity': point.plume_velocity,
+                                    'plume_velocity_x': point.plume_velocity_x,
+                                    'plume_velocity_y': point.plume_velocity_y,
+                                    # Plume geometry
+                                    'plume_height': point.plume_height,
+                                    'plume_width': point.plume_width,
+                                    'plume_angle': point.plume_angle,
+                                    'plume_spread': point.plume_spread,
+                                    'plume_area': point.plume_area,
+                                    # Plume composition
+                                    'particle_concentration': point.particle_concentration,
+                                    'metal_vapor_concentration': point.metal_vapor_concentration,
+                                    'gas_composition_ratio': point.gas_composition_ratio,
+                                    # Plume dynamics
+                                    'plume_fluctuation_rate': point.plume_fluctuation_rate,
+                                    'plume_instability_index': point.plume_instability_index,
+                                    'plume_turbulence': point.plume_turbulence,
+                                    # Process quality indicators
+                                    'process_stability': point.process_stability,
+                                    'plume_stability': point.plume_stability,
+                                    'intensity_variation': point.intensity_variation,
+                                    # Event detection
+                                    'excessive_plume_event': point.excessive_plume_event,
+                                    'unstable_plume_event': point.unstable_plume_event,
+                                    'contamination_event': point.contamination_event,
+                                    'anomaly_detected': point.anomaly_detected,
+                                    'anomaly_type': point.anomaly_type,
+                                    # Plume energy
+                                    'plume_energy': point.plume_energy,
+                                    'energy_density': point.energy_density,
+                                    # Process events
+                                    'process_event': point.process_event,
+                                    # Signal quality
+                                    'signal_to_noise_ratio': point.signal_to_noise_ratio,
+                                    # Additional plume features
+                                    'plume_momentum': point.plume_momentum,
+                                    'plume_pressure': point.plume_pressure,
+                                    'coordinate_system': coordinate_system
+                                }
+                                
+                                ispm_plume_docs.append(ispm_plume_doc)
+                            
+                            if ispm_plume_docs:
+                                mongo_client.insert_documents('ispm_plume_monitoring_data', ispm_plume_docs)
+                                total_inserted += len(ispm_plume_docs)
+                                print(f"   📊 Inserted batch: {total_inserted}/{len(all_data_points)} ISPM plume records...", end='\r')
+                        
+                        print(f"\n   ✅ Stored {total_inserted} ISPM plume monitoring records")
+                    else:
+                        print(f"   ⚠️  No ISPM plume data points generated")
             
             results.append({
                 'model_id': model_id,
@@ -814,8 +1262,8 @@ if __name__ == "__main__":
     parser.add_argument('--n-models', type=int, help='Number of models to process')
     parser.add_argument('--stl-files', nargs='+', help='Specific STL files to process')
     parser.add_argument('--collections', nargs='+', 
-                       choices=['stl_models', 'hatching_layers', 'laser_parameters', 
-                               'ct_scan_data', 'ispm_monitoring_data'],
+                       choices=['stl_models', 'hatching_layers', 'laser_monitoring_data', 
+                               'ct_scan_data', 'ispm_thermal_monitoring_data', 'ispm_optical_monitoring_data', 'ispm_acoustic_monitoring_data', 'ispm_strain_monitoring_data', 'ispm_plume_monitoring_data'],
                        help='Collections to populate')
     parser.add_argument('--delete-existing', action='store_true',
                        help='Delete existing data for the same STL files before populating')

@@ -1,61 +1,43 @@
 """
 AM-QADF Visualization Module
 
-Visualization tools for voxel domain data.
-Handles 3D rendering, multi-resolution viewing, and Jupyter notebook widgets.
+- ParaView: voxel/volume data (.vdb), slice views, isosurfaces. Primary for fine-resolution grids.
+- PyVista: surface geometry (STL), hatching paths with signals, 3D sensor data. No volume voxels.
 """
 
-from .voxel_renderer import (
-    VoxelRenderer,
+from .paraview_exporter import (
+    export_voxel_grid_to_paraview,
+    export_multiple_grids_to_paraview,
 )
 
-from .multi_resolution_viewer import (
-    MultiResolutionViewer,
-)
-
-from .multi_resolution_widgets import (
-    MultiResolutionWidgets,
-)
-
-from .adaptive_resolution_widgets import (
-    AdaptiveResolutionWidgets,
+from .paraview_launcher import (
+    launch_paraview,
+    create_paraview_button,
+    export_and_launch_paraview,
+    find_paraview_executable,
 )
 
 from .notebook_widgets import (
     VoxelVisualizationWidgets,
 )
 
-from .hatching_visualizer import (
-    HatchingVisualizer,
+from .pyvista_visualizer import (
+    PyVistaSurfaceVisualizer,
+    get_hatching_visualization_data_native,
+    get_point_cloud_visualization_data_native,
 )
-
-from .grid_visualizer import (
-    GridVisualizer,
-)
-
-from .signal_grid_visualizer import (
-    SignalGridVisualizer,
-    visualize_signal_grid,
-)
-
-from .pyvista_voxel_visualizer import (
-    PyVistaVoxelVisualizer,
-)
-
-from .html_exporter import (
-    PyVistaHTMLExporter,
-)
+from .html_exporter import PyVistaHTMLExporter
 
 __all__ = [
-    "VoxelRenderer",
-    "MultiResolutionViewer",
-    "MultiResolutionWidgets",
-    "AdaptiveResolutionWidgets",
+    "export_voxel_grid_to_paraview",
+    "export_multiple_grids_to_paraview",
+    "launch_paraview",
+    "create_paraview_button",
+    "export_and_launch_paraview",
+    "find_paraview_executable",
     "VoxelVisualizationWidgets",
-    "HatchingVisualizer",
-    "GridVisualizer",
-    "SignalGridVisualizer",
-    "visualize_signal_grid",
-    "PyVistaVoxelVisualizer",
+    "PyVistaSurfaceVisualizer",
+    "get_hatching_visualization_data_native",
+    "get_point_cloud_visualization_data_native",
     "PyVistaHTMLExporter",
 ]

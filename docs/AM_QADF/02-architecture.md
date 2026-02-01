@@ -2,7 +2,34 @@
 
 ## Architecture Overview
 
-AM-QADF follows a modular, layered architecture with clear separation of concerns.
+AM-QADF follows a modular, layered architecture with clear separation of concerns. The implementation is **Python + C++**: the main API and orchestration are in Python; performance-critical code lives in the C++ native extension and is used automatically when built. See [Python and C++](12-python-and-cpp.md).
+
+## Python and C++ Layers
+
+```mermaid
+graph TB
+    subgraph User["User code"]
+        PyUser["Python scripts / notebooks"]
+    end
+
+    subgraph Python["Python layer (am_qadf)"]
+        PyAPI["Unified API<br/>Query, Voxelization, Signal Mapping<br/>Synchronization, Correction, Fusion, etc."]
+    end
+
+    subgraph Native["C++ layer (am_qadf_native)"]
+        CppCore["Synchronization, Voxelization<br/>Signal Mapping (e.g. RBF), Correction<br/>Processing, Fusion, Query, I/O"]
+    end
+
+    PyUser --> PyAPI
+    PyAPI -->|pybind11| CppCore
+```
+
+| Layer | Role |
+|-------|------|
+| **Python (`am_qadf`)** | User-facing API, orchestration, data structures, fallbacks. |
+| **C++ (`am_qadf_native`)** | Heavy computation: spatial/temporal alignment, STL/OpenVDB voxelization, interpolation backends, grid fusion, MongoDB/CT query backends. |
+
+Module dependencies (below) describe the logical Python modules; several of them call into C++ under the hood. Details of which features require the native module are in [Python and C++](12-python-and-cpp.md).
 
 ## Layer Structure
 

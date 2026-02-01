@@ -7,6 +7,11 @@ This script generates:
 - Point cloud fixtures (hatching paths, laser points, CT points)
 - Signal fixtures (sample signals)
 - Validation fixtures (ground truth data, MPM comparison data, test datasets)
+- Monitoring fixtures (alert_fixtures.json, health_fixtures.json)
+- SPC fixtures (spc_fixtures.npz, capability_fixtures.json)
+- Streaming fixtures (kafka_fixtures.json)
+- OpenVDB fixtures (test_uniform_grid.vdb, test_multi_res_grid.vdb, test_adaptive_grid.vdb)
+- Ensures mocks/ directory exists (mocks are code, not generated)
 
 Usage:
     python scripts/generate_test_fixtures.py
@@ -23,10 +28,10 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    from am_qadf.voxelization.voxel_grid import VoxelGrid
+    from am_qadf.voxelization.uniform_resolution import VoxelGrid
 except ImportError as e:
     print(f"Error importing modules: {e}")
-    print("Please ensure AM-QADF is properly installed.")
+    print("Please ensure AM-QADF is properly installed (am_qadf_native with OpenVDB bindings).")
     sys.exit(1)
 
 
@@ -160,7 +165,7 @@ def generate_hatching_paths():
                 'scan_speed': float(1000.0 + np.random.rand() * 200.0),
                 'energy_density': float(50.0 + np.random.rand() * 20.0),
                 'laser_beam_width': 0.1,
-                'hatch_spacing': 0.1,
+                'hatch_spacing': 0.15,  # 0.15mm spacing allows gaps to be visible at 0.1mm voxel resolution
                 'overlap_percentage': float(50.0 + np.random.rand() * 10.0),
                 'hatch_type': 'line',
                 'scan_order': hatch_idx
@@ -416,6 +421,156 @@ def generate_validation_test_datasets():
 
 
 # ============================================================================
+# Monitoring Fixtures (alert, health)
+# ============================================================================
+
+def generate_monitoring_fixtures():
+    """Generate monitoring test data (alerts, health) as JSON-serializable dicts."""
+    from datetime import datetime, timedelta
+    
+    np.random.seed(42)
+    alerts = []
+    for i in range(20):
+        alerts.append({
+            "alert_id": f"alert_{i}",
+            "alert_type": np.random.choice(["quality_threshold", "temperature", "power", "defect"]),
+            "severity": np.random.choice(["low", "medium", "high", "critical"]),
+            "message": f"Test alert {i} from MonitoringFixture",
+            "timestamp": (datetime.now() - timedelta(minutes=i * 5)).isoformat(),
+            "source": "TestSource",
+            "metadata": {"metric_value": float(np.random.uniform(80, 200)), "threshold": 150.0},
+            "acknowledged": i % 3 == 0,
+        })
+    
+    health = {
+        "cpu_percent": 45.0,
+        "memory_percent": 62.0,
+        "disk_percent": 55.0,
+        "timestamp": datetime.now().isoformat(),
+        "status": "healthy",
+    }
+    return {"alerts": alerts, "health": health}
+
+
+# ============================================================================
+# SPC Fixtures (baseline, capability, control chart)
+# ============================================================================
+
+def generate_spc_fixtures():
+    """Generate SPC test data (baseline, capability, control chart)."""
+    np.random.seed(42)
+    
+    baseline_stable = np.random.normal(10.0, 1.0, 200)
+    baseline_unstable = np.concatenate([
+        np.random.normal(10.0, 1.0, 50),
+        np.random.normal(11.0, 1.0, 50),
+        np.random.normal(9.5, 1.0, 50),
+        np.random.normal(10.5, 1.0, 50),
+    ])
+    
+    capability = {
+        "cp": 1.33,
+        "cpk": 1.2,
+        "mean": 10.0,
+        "std": 0.5,
+        "usl": 12.0,
+        "lsl": 8.0,
+        "n_samples": 100,
+    }
+    
+    control_chart = np.random.normal(10.0, 1.0, 100).tolist()
+    
+    return {
+        "baseline_stable": baseline_stable,
+        "baseline_unstable": baseline_unstable,
+        "capability": capability,
+        "control_chart": control_chart,
+    }
+
+
+# ============================================================================
+# Streaming (Kafka) Fixtures
+# ============================================================================
+
+def generate_streaming_fixtures():
+    """Generate streaming/Kafka test messages as JSON-serializable list."""
+    from datetime import datetime
+    
+    np.random.seed(42)
+    messages = []
+    for i in range(30):
+        messages.append({
+            "topic": "am_qadf_monitoring",
+            "key": f"key_{i}",
+            "partition": 0,
+            "offset": i,
+            "timestamp": (datetime.now()).isoformat(),
+            "value": {
+                "sensor_id": f"sensor_{i % 5}",
+                "temperature": float(np.random.normal(1000.0, 50.0)),
+                "power": float(np.random.normal(200.0, 10.0)),
+                "velocity": float(np.random.normal(100.0, 5.0)),
+                "x": float(np.random.uniform(0.0, 100.0)),
+                "y": float(np.random.uniform(0.0, 100.0)),
+                "z": float(np.random.uniform(0.0, 10.0)),
+                "timestamp": datetime.now().isoformat(),
+            },
+        })
+    return messages
+
+
+# ============================================================================
+# OpenVDB Fixtures (.vdb files for C++/ParaView tests)
+# ============================================================================
+
+def generate_openvdb_fixtures(voxel_grid_small, voxel_grid_medium, openvdb_dir):
+    """Export voxel grids to .vdb files if am_qadf_native is available."""
+    try:
+        from am_qadf.visualization.paraview_exporter import export_voxel_grid_to_paraview
+    except ImportError:
+        print("   ⚠ ParaView exporter not available (am_qadf_native); skipping .vdb generation.")
+        (openvdb_dir / "README.txt").write_text(
+            "OpenVDB fixtures require am_qadf_native with OpenVDB bindings.\n"
+            "Run: python scripts/generate_test_fixtures.py (with native build).\n"
+            "Or create test_uniform_grid.vdb, test_multi_res_grid.vdb, test_adaptive_grid.vdb manually.\n"
+        )
+        return
+    
+    openvdb_dir.mkdir(parents=True, exist_ok=True)
+    
+    # test_uniform_grid.vdb (from small grid)
+    path_uniform = openvdb_dir / "test_uniform_grid.vdb"
+    export_voxel_grid_to_paraview(voxel_grid_small, str(path_uniform))
+    print(f"   ✓ {path_uniform.name}")
+    
+    # test_multi_res_grid.vdb (from medium grid; same format, different size)
+    path_multi = openvdb_dir / "test_multi_res_grid.vdb"
+    export_voxel_grid_to_paraview(voxel_grid_medium, str(path_multi))
+    print(f"   ✓ {path_multi.name}")
+    
+    # test_adaptive_grid.vdb: try AdaptiveResolutionGrid if available, else export small again with different name
+    try:
+        from am_qadf.voxelization.adaptive_resolution import AdaptiveResolutionGrid
+        adaptive = AdaptiveResolutionGrid(
+            bbox_min=(0.0, 0.0, 0.0),
+            bbox_max=(10.0, 10.0, 10.0),
+            base_resolution=1.0,
+        )
+        np.random.seed(42)
+        for _ in range(50):
+            x, y, z = np.random.rand(3) * 10.0
+            adaptive.add_point(x, y, z, signals={"temperature": float(np.random.rand() * 1000.0)})
+        adaptive.finalize()
+        path_adaptive = openvdb_dir / "test_adaptive_grid.vdb"
+        export_voxel_grid_to_paraview(adaptive, str(path_adaptive))
+        print(f"   ✓ {path_adaptive.name}")
+    except Exception as e:
+        path_adaptive = openvdb_dir / "test_adaptive_grid.vdb"
+        export_voxel_grid_to_paraview(voxel_grid_small, str(path_adaptive))
+        print(f"   ✓ {path_adaptive.name} (uniform fallback; adaptive not available: {e})")
+
+
+# ============================================================================
 # Main Generation Function
 # ============================================================================
 
@@ -423,16 +578,21 @@ def main():
     """Generate all test fixtures."""
     # Define fixture directories
     tests_dir = project_root / 'tests'
-    voxel_dir = tests_dir / 'fixtures' / 'voxel_data'
-    point_cloud_dir = tests_dir / 'fixtures' / 'point_clouds'
-    signals_dir = tests_dir / 'fixtures' / 'signals'
-    validation_dir = tests_dir / 'fixtures' / 'validation'
+    fixtures_dir = tests_dir / 'fixtures'
+    voxel_dir = fixtures_dir / 'voxel_data'
+    point_cloud_dir = fixtures_dir / 'point_clouds'
+    signals_dir = fixtures_dir / 'signals'
+    validation_dir = fixtures_dir / 'validation'
+    mocks_dir = fixtures_dir / 'mocks'
+    monitoring_dir = fixtures_dir / 'monitoring'
+    spc_dir = fixtures_dir / 'spc'
+    streaming_dir = fixtures_dir / 'streaming'
+    openvdb_dir = fixtures_dir / 'openvdb'
     
-    # Create directories
-    voxel_dir.mkdir(parents=True, exist_ok=True)
-    point_cloud_dir.mkdir(parents=True, exist_ok=True)
-    signals_dir.mkdir(parents=True, exist_ok=True)
-    validation_dir.mkdir(parents=True, exist_ok=True)
+    # Create all directories (mocks is code-only; we just ensure it exists)
+    for d in (voxel_dir, point_cloud_dir, signals_dir, validation_dir,
+              mocks_dir, monitoring_dir, spc_dir, streaming_dir, openvdb_dir):
+        d.mkdir(parents=True, exist_ok=True)
     
     print("=" * 60)
     print("Generating Test Fixtures")
@@ -445,35 +605,49 @@ def main():
     print("Voxel Grid Fixtures")
     print("=" * 60)
     
-    # Small grid
+    # Voxel grids use C++ OpenVDB (not picklable). We save metadata only; grids are
+    # generated on load via tests/fixtures/voxel_data (generate_*_voxel_grid).
     print("\n1. Small Voxel Grid (10x10x10)")
     small_grid = create_small_voxel_grid()
-    small_path = voxel_dir / 'small_voxel_grid.pkl'
-    with open(small_path, 'wb') as f:
-        pickle.dump(small_grid, f)
-    print(f"   ✓ Saved to {small_path}")
+    small_meta = voxel_dir / 'small_voxel_grid.meta.json'
+    with open(small_meta, 'w') as f:
+        json.dump({
+            "bbox_min": list(small_grid.bbox_min),
+            "bbox_max": list(small_grid.bbox_max),
+            "resolution": float(small_grid.resolution),
+            "signals": sorted(small_grid.available_signals),
+        }, f, indent=2)
+    print(f"   ✓ Metadata saved to {small_meta} (grid generated on load)")
     print(f"   Dimensions: {small_grid.dims}")
     print(f"   Resolution: {small_grid.resolution} mm")
     print(f"   Available signals: {small_grid.available_signals}")
-    
-    # Medium grid
+
     print("\n2. Medium Voxel Grid (50x50x50)")
     medium_grid = create_medium_voxel_grid()
-    medium_path = voxel_dir / 'medium_voxel_grid.pkl'
-    with open(medium_path, 'wb') as f:
-        pickle.dump(medium_grid, f)
-    print(f"   ✓ Saved to {medium_path}")
+    medium_meta = voxel_dir / 'medium_voxel_grid.meta.json'
+    with open(medium_meta, 'w') as f:
+        json.dump({
+            "bbox_min": list(medium_grid.bbox_min),
+            "bbox_max": list(medium_grid.bbox_max),
+            "resolution": float(medium_grid.resolution),
+            "signals": sorted(medium_grid.available_signals),
+        }, f, indent=2)
+    print(f"   ✓ Metadata saved to {medium_meta} (grid generated on load)")
     print(f"   Dimensions: {medium_grid.dims}")
     print(f"   Resolution: {medium_grid.resolution} mm")
     print(f"   Available signals: {medium_grid.available_signals}")
-    
-    # Large grid
+
     print("\n3. Large Voxel Grid (100x100x100)")
     large_grid = create_large_voxel_grid()
-    large_path = voxel_dir / 'large_voxel_grid.pkl'
-    with open(large_path, 'wb') as f:
-        pickle.dump(large_grid, f)
-    print(f"   ✓ Saved to {large_path}")
+    large_meta = voxel_dir / 'large_voxel_grid.meta.json'
+    with open(large_meta, 'w') as f:
+        json.dump({
+            "bbox_min": list(large_grid.bbox_min),
+            "bbox_max": list(large_grid.bbox_max),
+            "resolution": float(large_grid.resolution),
+            "signals": sorted(large_grid.available_signals),
+        }, f, indent=2)
+    print(f"   ✓ Metadata saved to {large_meta} (grid generated on load)")
     print(f"   Dimensions: {large_grid.dims}")
     print(f"   Resolution: {large_grid.resolution} mm")
     print(f"   Available signals: {large_grid.available_signals}")
@@ -591,6 +765,62 @@ def main():
               f"coords {dataset['framework_coords'].shape}")
     
     # ========================================================================
+    # Generate Monitoring Fixtures
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("Monitoring Fixtures")
+    print("=" * 60)
+    monitoring_data = generate_monitoring_fixtures()
+    alert_path = monitoring_dir / 'alert_fixtures.json'
+    with open(alert_path, 'w') as f:
+        json.dump(monitoring_data["alerts"], f, indent=2)
+    print(f"   ✓ {alert_path.name}: {len(monitoring_data['alerts'])} alerts")
+    health_path = monitoring_dir / 'health_fixtures.json'
+    with open(health_path, 'w') as f:
+        json.dump(monitoring_data["health"], f, indent=2)
+    print(f"   ✓ {health_path.name}")
+    
+    # ========================================================================
+    # Generate SPC Fixtures
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("SPC Fixtures")
+    print("=" * 60)
+    spc_data = generate_spc_fixtures()
+    spc_path = spc_dir / 'spc_fixtures.npz'
+    np.savez(
+        spc_path,
+        baseline_stable=spc_data["baseline_stable"],
+        baseline_unstable=spc_data["baseline_unstable"],
+        control_chart=np.array(spc_data["control_chart"]),
+    )
+    print(f"   ✓ {spc_path.name}: baseline_stable, baseline_unstable, control_chart")
+    capability_path = spc_dir / 'capability_fixtures.json'
+    with open(capability_path, 'w') as f:
+        json.dump(spc_data["capability"], f, indent=2)
+    print(f"   ✓ {capability_path.name}")
+    
+    # ========================================================================
+    # Generate Streaming (Kafka) Fixtures
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("Streaming Fixtures")
+    print("=" * 60)
+    kafka_messages = generate_streaming_fixtures()
+    kafka_path = streaming_dir / 'kafka_fixtures.json'
+    with open(kafka_path, 'w') as f:
+        json.dump(kafka_messages, f, indent=2)
+    print(f"   ✓ {kafka_path.name}: {len(kafka_messages)} messages")
+    
+    # ========================================================================
+    # Generate OpenVDB Fixtures (.vdb for C++/ParaView)
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("OpenVDB Fixtures")
+    print("=" * 60)
+    generate_openvdb_fixtures(small_grid, medium_grid, openvdb_dir)
+    
+    # ========================================================================
     # Summary
     # ========================================================================
     print("\n" + "=" * 60)
@@ -601,6 +831,11 @@ def main():
     print(f"  - Point clouds: {point_cloud_dir}")
     print(f"  - Signals: {signals_dir}")
     print(f"  - Validation: {validation_dir}")
+    print(f"  - Mocks: {mocks_dir} (code only)")
+    print(f"  - Monitoring: {monitoring_dir}")
+    print(f"  - SPC: {spc_dir}")
+    print(f"  - Streaming: {streaming_dir}")
+    print(f"  - OpenVDB: {openvdb_dir}")
 
 
 if __name__ == '__main__':

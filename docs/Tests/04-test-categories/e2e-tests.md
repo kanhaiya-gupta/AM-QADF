@@ -11,7 +11,9 @@ Test complete workflows from data input to output.
 - **Dependencies**: Test database, realistic data
 - **Count**: 3 test files
 
-## Test Files
+## Location and Test Files
+
+**Location**: `tests/e2e/` (Python only)
 
 - `test_complete_pipeline.py` - Complete pipeline workflow
 - `test_multi_source_fusion.py` - Multi-source fusion workflow

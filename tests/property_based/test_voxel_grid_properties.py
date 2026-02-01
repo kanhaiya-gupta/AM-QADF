@@ -10,7 +10,7 @@ from hypothesis import given, strategies as st, assume, settings
 from hypothesis.extra.numpy import arrays
 
 try:
-    from am_qadf.voxelization.voxel_grid import VoxelGrid
+    from am_qadf.voxelization.uniform_resolution import VoxelGrid
 
     VOXEL_GRID_AVAILABLE = True
 except ImportError:
@@ -114,8 +114,11 @@ class TestVoxelGridProperties:
         grid2.finalize()
 
         # Property: After finalization, adding same point twice should give same result
-        # (aggregation should handle duplicates)
-        assert len(grid1.voxels) == len(grid2.voxels)
+        # (aggregation should handle duplicates). Compare signal arrays.
+        arr1 = grid1.get_signal_array("test_signal", default=0.0)
+        arr2 = grid2.get_signal_array("test_signal", default=0.0)
+        assert arr1.shape == arr2.shape
+        assert np.allclose(arr1, arr2, atol=1e-6)
 
     @given(
         bbox_min=st.tuples(
@@ -146,8 +149,8 @@ class TestVoxelGridProperties:
             # Convert to voxel index
             voxel_idx = grid._world_to_voxel(world_point[0], world_point[1], world_point[2])
 
-            # Convert back to world coordinates (voxel center)
-            voxel_center = grid._voxel_to_world(voxel_idx[0], voxel_idx[1], voxel_idx[2])
+            # Voxel center in world coordinates (no _voxel_to_world in API)
+            voxel_center = np.array(grid.bbox_min) + (np.array(voxel_idx) + 0.5) * resolution
 
             # Property: Voxel center should be within one resolution of original point
             distance = np.linalg.norm(world_point - voxel_center)
@@ -207,9 +210,6 @@ class TestVoxelGridProperties:
         assume(all(bmax > bmin for bmin, bmax in zip(bbox_min, bbox_max)))
 
         grid = VoxelGrid(bbox_min=bbox_min, bbox_max=bbox_max, resolution=resolution)
-
-        # Property: Empty grid should have no voxels
-        assert len(grid.voxels) == 0
 
         # Property: Empty grid should have no available signals
         assert len(grid.available_signals) == 0

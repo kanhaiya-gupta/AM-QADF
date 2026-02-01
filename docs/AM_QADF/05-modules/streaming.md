@@ -369,7 +369,7 @@ The Streaming module integrates with:
 - **QualityAssessmentClient**: Real-time quality assessment
 - **SPCClient**: Real-time SPC monitoring
 - **MonitoringClient**: Alert generation and health monitoring
-- **InSituMonitoringClient**: Kafka-based streaming from monitoring systems
+- **ISPM clients** (e.g. ISPMThermalClient): Kafka-based streaming from monitoring systems
 
 ## Dependencies
 

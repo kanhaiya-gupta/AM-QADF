@@ -1,0 +1,18 @@
+{
+  "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "bbox_max": [
+    50.0,
+    50.0,
+    50.0
+  ],
+  "resolution": 1.0,
+  "signals": [
+    "density",
+    "laser_power",
+    "temperature"
+  ]
+}

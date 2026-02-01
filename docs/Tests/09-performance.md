@@ -1,51 +1,75 @@
 # Performance Testing
 
-## Benchmark Tests
+## Overview
 
-**Key Benchmarks**:
-- Signal mapping: 1M points → voxel grid
-- Voxel fusion: 10 signals, 1M voxels
-- Interpolation methods: Compare speed/accuracy
-- Parallel execution: Speedup vs sequential
-- Spark execution: Scalability
+Performance testing is implemented in **Python** (pytest-benchmark, regression suites) and **C++** (Google Benchmark). Python tests live under `tests/performance/python/`; C++ benchmarks under `tests/performance/cpp/`.
 
-## Performance Regression Tests
+## Python Performance Tests
+
+**Key benchmarks**:
+- Signal mapping: large point sets → voxel grid
+- Voxel fusion: multiple signals, large grids
+- Interpolation methods: speed and accuracy comparison
+- Regression: execution time and memory vs baselines
+
+**Locations**:
+- `tests/performance/python/benchmarks/` - benchmark_*.py
+- `tests/performance/python/regression/` - test_*_regression.py, baseline JSON files
+
+## C++ Performance Tests
+
+**Key benchmarks** (Google Benchmark, run via ctest or executables):
+- benchmark_fusion, benchmark_query, benchmark_signal_mapping
+- benchmark_synchronization, benchmark_voxelization
+
+**Location**: `tests/performance/cpp/`. Built when `ENABLE_BENCHMARKS=ON` (default if Google Benchmark is found or fetched).
+
+## Performance Regression (Python)
 
 - Track execution time over time
-- Alert on performance degradation (>10%)
+- Alert on performance degradation (e.g. vs baselines)
 - Compare against baseline benchmarks
 
-## Memory Profiling
+Baselines:
+- `tests/performance/python/regression/performance_baselines.json`
+- `tests/performance/python/regression/memory_baselines.json`
+
+## Memory Profiling (Python)
 
 - Memory usage for large datasets
 - Memory leak detection
 - Peak memory tracking
 
-## Baseline Management
-
-Performance baselines are stored in:
-- `tests/performance/regression/performance_baselines.json`
-- `tests/performance/regression/memory_baselines.json`
-
 ## Running Performance Tests
 
+### Python
+
 ```bash
-# Run benchmarks
-pytest tests/performance/benchmarks/ --benchmark-only
+# Regression tests
+pytest tests/performance/python/regression/ -m performance -v
 
-# Run regression tests
-pytest tests/performance/regression/ -m regression
+# Benchmarks
+pytest tests/performance/python/benchmarks/ -m benchmark --benchmark-only
 
-# Run all performance tests
-pytest tests/performance/ -m performance
+# All performance Python tests
+pytest tests/performance/python/ -m performance -v
 ```
+
+### C++
+
+From the build directory:
+```bash
+ctest --test-dir build -L benchmark --output-on-failure
+```
+
+See [15. Build Tests](15-build-tests.md) for building C++ benchmarks.
 
 ## Related
 
-- [Performance Test Category](04-test-categories/performance-tests.md) - Detailed performance test documentation
+- [Performance Test Category](04-test-categories/performance-tests.md) - Category details
+- [Build Tests](15-build-tests.md) - C++ build
 - [Success Metrics](12-success-metrics.md) - Performance metrics
 
 ---
 
 **Parent**: [Test Documentation](README.md)
-

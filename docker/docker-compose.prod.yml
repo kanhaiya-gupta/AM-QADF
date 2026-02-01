@@ -35,50 +35,104 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Apache Spark for Signal Mapping (Optional - for distributed processing)
-  # In production, use external Spark cluster
-  spark:
-    build:
-      context: ../..
-      dockerfile: docker/Dockerfile.spark
-    container_name: am-qadf-spark
-    environment:
-      SPARK_APP_NAME: am-qadf-spark
-      SPARK_MASTER: ${SPARK_MASTER:-local[*]}
-      SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY:-2g}
-      SPARK_EXECUTOR_MEMORY: ${SPARK_EXECUTOR_MEMORY:-2g}
-      SPARK_EXECUTOR_CORES: ${SPARK_EXECUTOR_CORES:-2}
-      PYTHONPATH: /opt/spark/src:/opt/spark/config
+  # Redis for Caching (Query Result Caching)
+  # In production, consider using external Redis service (AWS ElastiCache, Azure Cache, etc.)
+  redis:
+    image: redis:7-alpine
+    container_name: am-qadf-redis
     ports:
-      - "4040:4040"  # Spark UI
-      - "7077:7077"  # Spark Master
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - ../../src:/opt/spark/src
-      - ../../config:/opt/spark/config
-      - ../../data:/opt/spark/data
-      - spark_data:/opt/spark/data
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-2gb} --maxmemory-policy allkeys-lru
     networks:
       - am-qadf-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4040"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 4G
-          cpus: '2.0'
+          memory: ${REDIS_MAX_MEMORY:-2gb}
         reservations:
-          memory: 2G
-          cpus: '1.0'
+          memory: 256mb
+
+  # Kafka for Messaging & Streaming (KRaft mode, no Zookeeper)
+  # In production, consider using external Kafka (Confluent Cloud, MSK, etc.)
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: am-qadf-kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    volumes:
+      - kafka_data:/bitnami/kafka
+    networks:
+      - am-qadf-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # AM-QADF Framework (Python app; build from repo root)
+  am-qadf:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: am-qadf:prod
+    container_name: am-qadf-app
+    environment:
+      PYTHONPATH: /workspace/build/src/am_qadf_native:/workspace/build/src/am_qadf_native/Debug:/workspace/build/src/am_qadf_native/Release:/workspace/src:/workspace
+      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE:-am_qadf_data}?authSource=admin
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    volumes:
+      - ..:/workspace
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - am-qadf-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    command: ["/bin/bash", "-c", "sleep infinity"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 1G
 
 # Volumes
 volumes:
   mongodb_data:
     driver: local
-  spark_data:
+  redis_data:
+    driver: local
+  kafka_data:
     driver: local
 
 # Networks

@@ -1,10 +1,8 @@
 """
-Signal Mapping Execution Backends
+Signal Mapping Execution - Thin Wrapper for C++
 
-Execution backends for signal mapping:
-- Sequential: Default single-threaded execution
-- Parallel: Multi-core parallel execution
-- Spark: Distributed execution on Spark cluster
+This module provides a thin Python interface to C++ signal mapping implementations.
+All core computation is done in C++ (am_qadf_native).
 """
 
 from .sequential import (

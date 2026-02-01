@@ -2,26 +2,17 @@
 
 ## ⭐ CRITICAL MODULE
 
-The signal mapping module is the **core** of the AM-QADF framework and requires the highest test coverage (95%+).
+The signal mapping module is a **core** part of the AM-QADF framework and is covered by both Python and C++ tests.
 
 ## Test Structure
 
-```
-tests/unit/signal_mapping/
-├── methods/
-│   ├── test_nearest_neighbor.py
-│   ├── test_linear.py
-│   ├── test_idw.py
-│   └── test_kde.py
-├── execution/
-│   ├── test_sequential.py
-│   ├── test_parallel.py
-│   └── test_spark.py
-└── utils/
-    ├── test_coordinate_utils.py
-    ├── test_performance.py
-    └── test_spark_utils.py
-```
+**Python** (`tests/unit/python/signal_mapping/`, `tests/integration/bridge/test_signal_mapping_bridge.py`):
+- Unit tests for interpolation methods (nearest neighbor, linear, IDW, KDE, RBF) and execution
+- Bridge tests for the native (C++) signal mapping API
+
+**C++** (`tests/unit/cpp/signal_mapping/`):
+- `test_nearest_neighbor.cpp`, `test_linear_interpolation.cpp`, `test_idw_interpolation.cpp`
+- `test_kde_interpolation.cpp`, `test_rbf_interpolation.cpp`, `test_interpolation_base.cpp`
 
 ## Key Tests
 
@@ -33,70 +24,54 @@ tests/unit/signal_mapping/
 
 ### Performance
 - Vectorization effectiveness
-- Parallel execution correctness
-- Spark distributed execution
 - Memory efficiency
+- C++ benchmarks: `tests/performance/cpp/benchmark_signal_mapping.cpp`
 
-### Critical Test Cases
+### Critical Test Cases (Python)
 
 ```python
 def test_interpolation_accuracy():
     """Verify interpolation methods produce accurate results."""
-    
+
 def test_interpolation_with_empty_data():
     """Handle empty point clouds gracefully."""
-    
+
 def test_interpolation_boundary_conditions():
     """Test points outside voxel grid."""
-    
-def test_parallel_execution_correctness():
-    """Verify parallel execution produces same results as sequential."""
-    
-def test_spark_execution_scalability():
-    """Test Spark execution with large datasets."""
+
+def test_sequential_execution_correctness():
+    """Verify sequential execution produces expected results."""
 ```
 
 ## Coverage Target
 
-**95%+** - This is the most critical module.
+**95%+** for Python signal mapping code where applicable.
 
 ## Running Signal Mapping Module Tests
 
+### Python
+
 ```bash
-# Run all signal mapping tests
-pytest tests/unit/signal_mapping/ -m unit
+# All signal mapping unit tests
+pytest tests/unit/python/signal_mapping/ -m unit -v
 
-# Run by submodule
-pytest tests/unit/signal_mapping/methods/        # Interpolation methods
-pytest tests/unit/signal_mapping/execution/      # Execution strategies
-pytest tests/unit/signal_mapping/utils/          # Utilities
+# Bridge tests (requires built native module)
+pytest tests/integration/bridge/test_signal_mapping_bridge.py -m integration -v
+```
 
-# Run specific interpolation method tests
-pytest tests/unit/signal_mapping/methods/test_nearest_neighbor.py
-pytest tests/unit/signal_mapping/methods/test_linear.py
-pytest tests/unit/signal_mapping/methods/test_idw.py
+### C++
 
-# Run execution tests
-pytest tests/unit/signal_mapping/execution/test_sequential.py
-pytest tests/unit/signal_mapping/execution/test_parallel.py
-pytest tests/unit/signal_mapping/execution/test_spark.py
-
-# Run with coverage (critical module)
-pytest tests/unit/signal_mapping/ --cov=am_qadf.signal_mapping --cov-report=html
-
-# Run property-based tests
-pytest tests/property_based/test_interpolation_properties.py -m property_based
-
-# Run performance benchmarks
-pytest tests/performance/benchmarks/benchmark_interpolation_methods.py --benchmark-only
+From the build directory:
+```bash
+ctest --test-dir build -R signal_mapping --output-on-failure
 ```
 
 ## Related
 
-- [Property-Based Tests](../04-test-categories/property-based-tests.md) - Mathematical properties
-- [Performance Tests](../04-test-categories/performance-tests.md) - Performance benchmarks
+- [Build Tests](../15-build-tests.md) - Building C++ tests
+- [Running Tests](../14-running-tests.md) - Command reference
+- [Integration Bridge](../04-test-categories/integration-tests.md) - Bridge tests
 
 ---
 
-**Parent**: [Module Testing Guides](README.md)
-
+**Parent**: [Module Testing](README.md)

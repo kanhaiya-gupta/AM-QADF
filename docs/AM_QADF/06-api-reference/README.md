@@ -1,6 +1,6 @@
 # API Reference
 
-This directory contains complete API reference documentation for all AM-QADF modules.
+This directory contains complete API reference documentation for all AM-QADF modules. The **primary API is Python** (`am_qadf`). Many modules call into the **C++ native extension** (`am_qadf_native`) for performance; where relevant, API docs note C++ types or requirements. See [Python and C++](../12-python-and-cpp.md).
 
 ## Module APIs
 

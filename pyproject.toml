@@ -1,62 +1,59 @@
-[tool.black]
-line-length = 127
-target-version = ['py39', 'py310', 'py311']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | __pycache__
-  | notebooks
-  | data
-  | outputs
-)/
-'''
+[build-system]
+requires = ["setuptools>=45", "wheel", "cmake>=3.15", "pybind11>=2.10", "ninja"]
+build-backend = "setuptools.build_meta"
 
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-ignore_missing_imports = true
-no_strict_optional = true
-explicit_package_bases = true
-# Allow redefinition of names (common in dynamic imports)
-allow_redefinition = true
-# Disable error codes that are mostly false positives in this codebase:
-# - no-redef: Dynamic imports cause redefinition warnings
-# - attr-defined: False positives with "None" and "object" types
-# - index: Indexing errors on "object" and "None" types (false positives)
-# - operator: Operator errors on "object" types (false positives)
-# - call-overload: List() call errors with "object" (false positives)
-# - var-annotated: Missing type annotations (not critical for runtime)
-# - return-value: Return type mismatches (mostly numpy type issues)
-# - arg-type: Argument type mismatches (mostly numpy type issues)
-# - dict-item: Dict item type mismatches (mostly numpy type issues)
-# - annotation-unchecked: Untyped function bodies (not critical)
-# - misc: Cannot assign to type (false positives from dynamic imports)
-# - no-any-return: Functions returning numpy arrays that mypy can't fully infer
-disable_error_code = [
-    "no-redef",
-    "attr-defined",
-    "index",
-    "operator",
-    "call-overload",
-    "var-annotated",
-    "return-value",
-    "arg-type",
-    "dict-item",
-    "annotation-unchecked",
-    "misc",
-    "no-any-return",
+[project]
+name = "am-qadf"
+version = "0.1.0"
+description = "AM-QADF: Additive Manufacturing Quality Assessment and Data Fusion Framework"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "AM-QADF Team"}
 ]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "pandas>=1.3.0",
+    "scikit-learn>=1.0.0",
+    "pymongo>=4.0.0",
+    "redis>=4.0.0",
+    "pyvista>=0.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "pytest-benchmark>=4.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+    "mypy>=0.950",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/AM-QADF"
+Documentation = "https://am-qadf.readthedocs.io"
+Repository = "https://github.com/your-org/AM-QADF"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["am_qadf"]
+
+[tool.setuptools.package-data]
+am_qadf = ["py.typed"]

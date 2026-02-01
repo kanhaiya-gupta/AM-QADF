@@ -11,6 +11,7 @@ This layer provides centralized database connection management, keeping the fram
 - Connection pooling and management
 - Health checks for Docker environments
 - MongoDB, Cassandra, Neo4j, Elasticsearch support
+- Redis caching for query results
 
 ## Structure
 
@@ -22,11 +23,15 @@ AM-QADF/
 │       │   ├── env_loader.py          # Load .env files
 │       │   └── database_config.py     # Parse DB configs from env vars
 │       │
-│       └── database/
-│           ├── connection_manager.py  # Centralized connection management
-│           ├── mongodb_client.py      # MongoDB client wrapper
-│           ├── connection_pool.py      # Connection pooling
-│           └── health_check.py         # Health checks
+│       ├── database/
+│       │   ├── connection_manager.py  # Centralized connection management
+│       │   ├── mongodb_client.py      # MongoDB client wrapper
+│       │   ├── connection_pool.py      # Connection pooling
+│       │   └── health_check.py         # Health checks
+│       │
+│       └── cache/
+│           ├── redis_config.py        # Redis configuration
+│           └── redis_client.py        # Redis client wrapper
 │
 └── docs/
     └── Infrastructure/          # Documentation (this directory)
@@ -111,6 +116,14 @@ The infrastructure reads from `.env` files or Docker environment variables:
 - `MONGODB_HOST` - Host (if not using URL)
 - `MONGODB_PORT` - Port (default: 27017)
 
+### Redis (Optional - for Caching)
+- `REDIS_HOST` - Redis host (default: localhost)
+- `REDIS_PORT` - Redis port (default: 6379)
+- `REDIS_DB` - Redis database number (default: 0)
+- `REDIS_PASSWORD` - Redis password (optional)
+- `REDIS_DEFAULT_TTL` - Default cache TTL in seconds (default: 3600)
+- `REDIS_MAX_CACHE_SIZE_MB` - Maximum Redis memory for cache (default: 512)
+
 ### Docker Integration
 
 In `docker-compose.yml`, environment variables are automatically passed:
@@ -139,4 +152,27 @@ services:
 3. **Health Checks**: Regularly check connection health in long-running services
 4. **Close Connections**: Properly close connections when shutting down
 5. **Error Handling**: Always handle connection errors gracefully
+6. **Redis Caching**: Use Redis for persistent caching (see [Redis Caching](redis-caching.md))
+
+## Related Documentation
+
+- [Infrastructure Setup](SETUP.md) - Setup and installation guide
+- [Build System](build/README.md) - Build system documentation
+- [Third-Party Dependencies](third-party/README.md) - Third-party library documentation
+- [Redis Caching](redis-caching.md) - Redis caching infrastructure
+- [Redis Troubleshooting](redis-troubleshooting.md) - Redis troubleshooting guide
+
+## Utility Scripts
+
+Utility scripts for managing infrastructure services are available in `generation/scripts/`:
+
+### MongoDB
+- `start_mongodb.py` - Start MongoDB container
+- `stop_mongodb.py` - Stop MongoDB container
+- `check_mongodb.py` - Check MongoDB connection and status
+
+### Redis
+- `start_redis.py` - Start Redis container
+- `stop_redis.py` - Stop Redis container
+- `check_redis.py` - Check Redis connection and cache status
 

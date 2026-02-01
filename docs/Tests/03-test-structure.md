@@ -2,137 +2,105 @@
 
 ## Directory Organization
 
+Tests are split into **Python** (pytest) and **C++** (CMake/ctest). Python tests live under `unit/python/`, `integration/python/`, `integration/bridge/`, and `performance/python/`; C++ tests under `unit/cpp/`, `integration/cpp/`, and `performance/cpp/`.
+
 ```
 tests/
 ├── __init__.py
 ├── conftest.py                    # Shared pytest fixtures
 │
-├── unit/                          # Unit tests (fast, isolated)
-│   ├── __init__.py
-│   ├── core/                      # Core module tests
-│   ├── query/                     # Query module tests
-│   ├── voxelization/              # Voxelization tests
-│   ├── signal_mapping/            # Signal mapping tests
-│   ├── synchronization/           # Synchronization tests
-│   ├── correction/                # Correction tests
-│   ├── processing/                # Processing tests
-│   ├── fusion/                    # Fusion tests
-│   ├── quality/                   # Quality tests
-│   ├── analytics/                 # Analytics tests
-│   ├── anomaly_detection/         # Anomaly detection tests
-│   ├── visualization/             # Visualization tests
-│   └── voxel_domain/              # Voxel domain tests
+├── unit/                          # Unit tests
+│   ├── python/                    # Python unit tests (pytest)
+│   │   ├── analytics/
+│   │   ├── correction/
+│   │   ├── fusion/
+│   │   ├── processing/
+│   │   ├── query/
+│   │   ├── signal_mapping/
+│   │   ├── synchronization/
+│   │   ├── voxel_domain/
+│   │   ├── voxelization/
+│   │   └── ... (other modules)
+│   └── cpp/                       # C++ unit tests (CMake/ctest)
+│       ├── correction/
+│       ├── fusion/
+│       ├── io/
+│       ├── processing/
+│       ├── query/
+│       ├── signal_mapping/
+│       ├── synchronization/
+│       └── voxelization/
 │
 ├── integration/                   # Integration tests
-│   ├── test_signal_mapping_pipeline.py
-│   ├── test_voxel_domain_workflow.py
-│   ├── test_analytics_workflow.py
-│   ├── test_fusion_workflow.py
-│   ├── test_quality_assessment_workflow.py
-│   └── test_end_to_end_workflow.py
+│   ├── python/                   # Python integration (pytest)
+│   │   ├── analytics/, deployment/, monitoring/, spc/, streaming/, validation/
+│   │   ├── test_analytics_workflow.py
+│   │   ├── test_end_to_end_workflow.py
+│   │   ├── test_fusion_workflow.py
+│   │   ├── test_signal_mapping_pipeline.py
+│   │   ├── test_voxel_domain_workflow.py
+│   │   └── ...
+│   ├── bridge/                   # Python–C++ bridge tests (pytest)
+│   │   ├── test_correction_bridge.py
+│   │   ├── test_processing_bridge.py
+│   │   ├── test_python_cpp_bridge.py
+│   │   ├── test_voxelization_bridge.py
+│   │   └── ...
+│   └── cpp/                      # C++ integration (CMake/ctest)
+│       ├── test_correction_pipeline.cpp
+│       ├── test_fusion_pipeline.cpp
+│       ├── test_signal_mapping_pipeline.cpp
+│       └── ...
 │
 ├── performance/                   # Performance tests
-│   ├── benchmarks/                # Benchmark tests
-│   │   ├── benchmark_signal_mapping.py
-│   │   ├── benchmark_voxel_fusion.py
-│   │   ├── benchmark_interpolation_methods.py
-│   │   └── benchmark_parallel_execution.py
-│   └── regression/                # Regression tests
-│       ├── test_performance_regression.py
-│       └── test_memory_regression.py
+│   ├── python/                   # Python benchmarks (pytest)
+│   │   ├── benchmarks/           # benchmark_*.py
+│   │   └── regression/           # test_*_regression.py, baselines
+│   └── cpp/                      # C++ benchmarks (Google Benchmark, ctest)
+│       ├── benchmark_fusion.cpp
+│       ├── benchmark_signal_mapping.cpp
+│       ├── benchmark_voxelization.cpp
+│       └── ...
 │
-├── fixtures/                      # Test data and fixtures
-│   ├── voxel_data/                # Voxel grid fixtures
-│   ├── point_clouds/              # Point cloud fixtures
-│   ├── signals/                   # Signal fixtures
-│   └── mocks/                     # Mock objects
+├── fixtures/                      # Test data and mocks
+│   ├── mocks/
+│   ├── point_clouds/, signals/, voxel_data/
+│   ├── openvdb/, spc/, streaming/, validation/
+│   └── ...
 │
-├── property_based/                # Property-based tests
-│   ├── test_voxel_grid_properties.py
-│   ├── test_interpolation_properties.py
-│   ├── test_fusion_properties.py
-│   └── test_coordinate_transformations.py
-│
-└── e2e/                           # End-to-end tests
-    ├── test_complete_pipeline.py
-    ├── test_multi_source_fusion.py
-    └── test_analytics_pipeline.py
+├── property_based/                # Property-based tests (pytest)
+├── e2e/                           # End-to-end tests (pytest)
+└── utils/                         # Test utilities (pytest)
 ```
 
 ## Naming Conventions
 
-### Test Files
-- Pattern: `test_<module_name>.py`
-- Example: `test_voxel_grid.py`, `test_hatching_client.py`
+### Python
+- **Files**: `test_<module_or_feature>.py`
+- **Functions**: `test_<functionality>_<condition>`
+- **Classes**: `Test<ClassName>`
 
-### Test Functions
-- Pattern: `test_<functionality>_<condition>`
-- Example: `test_interpolation_with_empty_data()`
-- Example: `test_fusion_commutativity()`
+### C++
+- **Files**: `test_<module>.cpp` or `benchmark_<area>.cpp`
+- **Test cases**: Catch2 `TEST_CASE` / `SECTION` names
 
-### Test Classes
-- Pattern: `Test<ClassName>`
-- Example: `TestVoxelGrid`, `TestInterpolationMethod`
+## Running by Layer
 
-## File Organization
+| Layer        | Python command                    | C++ (after build)           |
+|-------------|------------------------------------|-----------------------------|
+| Unit        | `pytest tests/unit/python/ -m unit` | `ctest --test-dir build -R unit` (or run executables) |
+| Integration | `pytest tests/integration/python/ tests/integration/bridge/ -m integration` | `ctest --test-dir build -R integration` |
+| Performance | `pytest tests/performance/python/ -m performance` | `ctest --test-dir build -L benchmark` |
 
-### One Test File Per Source File
-- Mirror source directory structure
-- `src/am_qadf/voxelization/voxel_grid.py` → `tests/unit/voxelization/test_voxel_grid.py`
-
-### Group Related Tests
-- Use test classes to group related tests
-- Use pytest markers for categorization
-
-## Test File Structure Template
-
-```python
-"""
-Unit tests for <ModuleName>.
-
-Tests for <brief description>.
-"""
-
-import pytest
-import numpy as np
-from unittest.mock import Mock, MagicMock
-
-try:
-    from am_qadf.<module> import <Class>
-    MODULE_AVAILABLE = True
-except ImportError:
-    MODULE_AVAILABLE = False
-
-
-@pytest.mark.skipif(not MODULE_AVAILABLE, reason="Module not available")
-@pytest.mark.unit
-class TestClassName:
-    """Test cases for ClassName."""
-    
-    @pytest.fixture
-    def sample_data(self):
-        """Create sample test data."""
-        return ...
-    
-    def test_basic_functionality(self, sample_data):
-        """Test basic functionality."""
-        # Arrange
-        obj = ClassName(...)
-        
-        # Act
-        result = obj.method(sample_data)
-        
-        # Assert
-        assert result is not None
-```
+See [14-running-tests.md](14-running-tests.md) and [15-build-tests.md](15-build-tests.md) for full commands.
 
 ## Related Documentation
 
-- [Module Testing Guides](05-module-testing/) - Module-specific structure
-- [Test Categories](04-test-categories/) - Category-specific organization
-- [Infrastructure](06-infrastructure.md) - Fixtures and utilities
+- [Module Testing Guides](05-module-testing/) - Per-module structure
+- [Test Categories](04-test-categories/) - Category details
+- [Infrastructure](06-infrastructure.md) - Fixtures and configuration
+- [Build Tests](15-build-tests.md) - C++ build and ctest
 
 ---
 
 **Related**: [Overview](01-overview.md) | [Test Categories](04-test-categories/)
-

@@ -272,7 +272,7 @@
         "scan_speed": 1178.96547008553,
         "energy_density": 61.9579995762217,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 59.21874235023117,
         "hatch_type": "line",
         "scan_order": 0
@@ -544,7 +544,7 @@
         "scan_speed": 1015.3959819657586,
         "energy_density": 55.79502905827536,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.61221287254004,
         "hatch_type": "line",
         "scan_order": 1
@@ -816,7 +816,7 @@
         "scan_speed": 1167.0604991178475,
         "energy_density": 56.41560129943472,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.86518510399854,
         "hatch_type": "line",
         "scan_order": 2
@@ -1088,7 +1088,7 @@
         "scan_speed": 1113.6617206670944,
         "energy_density": 51.87349535656185,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 53.677158030594335,
         "hatch_type": "line",
         "scan_order": 3
@@ -1360,7 +1360,7 @@
         "scan_speed": 1129.992786155553,
         "energy_density": 64.03933754515407,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.95792669436101,
         "hatch_type": "line",
         "scan_order": 4
@@ -1632,7 +1632,7 @@
         "scan_speed": 1023.2145281013833,
         "energy_density": 50.920052840435055,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 50.4072880231897,
         "hatch_type": "line",
         "scan_order": 5
@@ -1904,7 +1904,7 @@
         "scan_speed": 1161.3669478534528,
         "energy_density": 69.81010284001347,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 54.12617676911427,
         "hatch_type": "line",
         "scan_order": 6
@@ -2176,7 +2176,7 @@
         "scan_speed": 1189.4497154767716,
         "energy_density": 69.72002127645742,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.533781852589414,
         "hatch_type": "line",
         "scan_order": 7
@@ -2448,7 +2448,7 @@
         "scan_speed": 1107.219273268824,
         "energy_density": 56.19055232572656,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 58.137950197069486,
         "hatch_type": "line",
         "scan_order": 8
@@ -2720,7 +2720,7 @@
         "scan_speed": 1005.7565352626677,
         "energy_density": 65.10274511347238,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 56.20309551353465,
         "hatch_type": "line",
         "scan_order": 9
@@ -3002,7 +3002,7 @@
         "scan_speed": 1016.3518063897744,
         "energy_density": 67.47157248213554,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 59.20872400531813,
         "hatch_type": "line",
         "scan_order": 0
@@ -3274,7 +3274,7 @@
         "scan_speed": 1057.0190337387694,
         "energy_density": 53.467471905895096,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 58.96765424626425,
         "hatch_type": "line",
         "scan_order": 1
@@ -3546,7 +3546,7 @@
         "scan_speed": 1168.3657553516543,
         "energy_density": 52.79544753252579,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.9526731185989,
         "hatch_type": "line",
         "scan_order": 2
@@ -3818,7 +3818,7 @@
         "scan_speed": 1108.5448886695192,
         "energy_density": 55.03598117813905,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 53.456959935039194,
         "hatch_type": "line",
         "scan_order": 3
@@ -4090,7 +4090,7 @@
         "scan_speed": 1072.4787798233267,
         "energy_density": 61.61176700556087,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 56.3226428791953,
         "hatch_type": "line",
         "scan_order": 4
@@ -4362,7 +4362,7 @@
         "scan_speed": 1079.436705923691,
         "energy_density": 63.36170273141292,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 52.04984295415821,
         "hatch_type": "line",
         "scan_order": 5
@@ -4634,7 +4634,7 @@
         "scan_speed": 1119.4826204340616,
         "energy_density": 62.010337208673064,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 56.650366745462556,
         "hatch_type": "line",
         "scan_order": 6
@@ -4906,7 +4906,7 @@
         "scan_speed": 1131.7566733421436,
         "energy_density": 63.84553129035705,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 58.49195651565319,
         "hatch_type": "line",
         "scan_order": 7
@@ -5178,7 +5178,7 @@
         "scan_speed": 1196.816693839859,
         "energy_density": 65.36546827729036,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 54.17766782167334,
         "hatch_type": "line",
         "scan_order": 8
@@ -5450,7 +5450,7 @@
         "scan_speed": 1175.492172526076,
         "energy_density": 55.31200085177412,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.29514921282804,
         "hatch_type": "line",
         "scan_order": 9
@@ -5732,7 +5732,7 @@
         "scan_speed": 1051.960716212832,
         "energy_density": 62.68011406199223,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 55.399853797158556,
         "hatch_type": "line",
         "scan_order": 0
@@ -6004,7 +6004,7 @@
         "scan_speed": 1081.8668012630087,
         "energy_density": 67.88198407358269,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 52.29954605891086,
         "hatch_type": "line",
         "scan_order": 1
@@ -6276,7 +6276,7 @@
         "scan_speed": 1103.5423286769424,
         "energy_density": 51.757329982896664,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 53.50626931209181,
         "hatch_type": "line",
         "scan_order": 2
@@ -6548,7 +6548,7 @@
         "scan_speed": 1092.5245913478632,
         "energy_density": 67.36545010816761,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.27169069766308,
         "hatch_type": "line",
         "scan_order": 3
@@ -6820,7 +6820,7 @@
         "scan_speed": 1049.742854517526,
         "energy_density": 62.3428997320806,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.06777216885446,
         "hatch_type": "line",
         "scan_order": 4
@@ -7092,7 +7092,7 @@
         "scan_speed": 1114.1219493277658,
         "energy_density": 50.60774119393674,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 59.30948695506978,
         "hatch_type": "line",
         "scan_order": 5
@@ -7364,7 +7364,7 @@
         "scan_speed": 1152.9766523084256,
         "energy_density": 66.25971477432188,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.181230762264946,
         "hatch_type": "line",
         "scan_order": 6
@@ -7636,7 +7636,7 @@
         "scan_speed": 1084.7476507297526,
         "energy_density": 63.35099798582941,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 50.95535313834668,
         "hatch_type": "line",
         "scan_order": 7
@@ -7908,7 +7908,7 @@
         "scan_speed": 1012.028468520157,
         "energy_density": 61.2459363175582,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 59.5762528450538,
         "hatch_type": "line",
         "scan_order": 8
@@ -8180,7 +8180,7 @@
         "scan_speed": 1080.5960357530323,
         "energy_density": 53.47049029973017,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 56.949510889024616,
         "hatch_type": "line",
         "scan_order": 9
@@ -8462,7 +8462,7 @@
         "scan_speed": 1085.2166767780743,
         "energy_density": 52.61420753480399,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 58.86604215240467,
         "hatch_type": "line",
         "scan_order": 0
@@ -8734,7 +8734,7 @@
         "scan_speed": 1103.6816043890408,
         "energy_density": 53.003380016340834,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.374337687214854,
         "hatch_type": "line",
         "scan_order": 1
@@ -9006,7 +9006,7 @@
         "scan_speed": 1048.138542366501,
         "energy_density": 52.430027526018364,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.97470489859937,
         "hatch_type": "line",
         "scan_order": 2
@@ -9278,7 +9278,7 @@
         "scan_speed": 1001.0459227085826,
         "energy_density": 65.21981520056188,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 50.353113549402394,
         "hatch_type": "line",
         "scan_order": 3
@@ -9550,7 +9550,7 @@
         "scan_speed": 1084.2496106588144,
         "energy_density": 62.72354729416465,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.856516180802316,
         "hatch_type": "line",
         "scan_order": 4
@@ -9822,7 +9822,7 @@
         "scan_speed": 1027.849074223519,
         "energy_density": 60.64841364550434,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 54.11095602600707,
         "hatch_type": "line",
         "scan_order": 5
@@ -10094,7 +10094,7 @@
         "scan_speed": 1066.0430129742995,
         "energy_density": 65.1350301137727,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 55.19385859503937,
         "hatch_type": "line",
         "scan_order": 6
@@ -10366,7 +10366,7 @@
         "scan_speed": 1133.5839997607254,
         "energy_density": 62.69342546507883,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.65954895295785,
         "hatch_type": "line",
         "scan_order": 7
@@ -10638,7 +10638,7 @@
         "scan_speed": 1042.5288752742192,
         "energy_density": 50.66378709124852,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 53.03946401240724,
         "hatch_type": "line",
         "scan_order": 8
@@ -10910,7 +10910,7 @@
         "scan_speed": 1037.0660359057429,
         "energy_density": 51.57938324381657,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 52.39510169909538,
         "hatch_type": "line",
         "scan_order": 9
@@ -11192,7 +11192,7 @@
         "scan_speed": 1103.3145256891958,
         "energy_density": 50.110115983208416,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 50.07664032649225,
         "hatch_type": "line",
         "scan_order": 0
@@ -11464,7 +11464,7 @@
         "scan_speed": 1002.0262368055487,
         "energy_density": 62.72192092819084,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 59.13286947576237,
         "hatch_type": "line",
         "scan_order": 1
@@ -11736,7 +11736,7 @@
         "scan_speed": 1121.155849890538,
         "energy_density": 57.2918745639508,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 52.1789255425499,
         "hatch_type": "line",
         "scan_order": 2
@@ -12008,7 +12008,7 @@
         "scan_speed": 1176.0629524297854,
         "energy_density": 62.4681191631888,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 55.69377361182283,
         "hatch_type": "line",
         "scan_order": 3
@@ -12280,7 +12280,7 @@
         "scan_speed": 1095.3686936635634,
         "energy_density": 63.75444084861121,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.22706957698229,
         "hatch_type": "line",
         "scan_order": 4
@@ -12552,7 +12552,7 @@
         "scan_speed": 1095.2873972687582,
         "energy_density": 54.52057995631999,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 56.40476042175844,
         "hatch_type": "line",
         "scan_order": 5
@@ -12824,7 +12824,7 @@
         "scan_speed": 1077.5297610911293,
         "energy_density": 62.654237574972015,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 57.03857091634331,
         "hatch_type": "line",
         "scan_order": 6
@@ -13096,7 +13096,7 @@
         "scan_speed": 1003.8655261835202,
         "energy_density": 52.487367980010205,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 54.136426749186356,
         "hatch_type": "line",
         "scan_order": 7
@@ -13368,7 +13368,7 @@
         "scan_speed": 1045.076253601353,
         "energy_density": 53.9166616826854,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.40802948892676,
         "hatch_type": "line",
         "scan_order": 8
@@ -13640,7 +13640,7 @@
         "scan_speed": 1124.468652923449,
         "energy_density": 69.6235567352459,
         "laser_beam_width": 0.1,
-        "hatch_spacing": 0.1,
+        "hatch_spacing": 0.15,
         "overlap_percentage": 51.90107649783727,
         "hatch_type": "line",
         "scan_order": 9

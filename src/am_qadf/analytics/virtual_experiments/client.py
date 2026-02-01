@@ -183,7 +183,7 @@ class VirtualExperimentClient:
                             and self.unified_client.laser_client.mongo_client
                         ):
                             try:
-                                collection = self.unified_client.laser_client.mongo_client.get_collection("laser_parameters")
+                                collection = self.unified_client.laser_client.mongo_client.get_collection("laser_monitoring_data")
                                 # Query all documents for this model (limited to reasonable number)
                                 cursor = collection.find({"model_id": model_id}).limit(10000)
                                 for doc in cursor:

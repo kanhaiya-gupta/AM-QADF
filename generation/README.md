@@ -11,9 +11,13 @@ In **production**, data comes from real sensors and experiments. In **demo/testi
 ```
 data_generation/
 ├── sensors/              # Sensor data generators
-│   ├── ispm_generator.py           # ISPM (In-Situ Process Monitoring) data
+│   ├── ispm_thermal_generator.py   # ISPM_Thermal (thermal monitoring) data
+│   ├── ispm_optical_generator.py   # ISPM_Optical (photodiodes, cameras) data
+│   ├── ispm_acoustic_generator.py # ISPM_Acoustic (acoustic emissions) data
+│   ├── ispm_strain_generator.py    # ISPM_Strain (strain gauges) data
+│   ├── ispm_plume_generator.py     # ISPM_Plume (vapor plume) data
 │   ├── ct_scan_generator.py        # Computed Tomography scan data
-│   └── laser_parameter_generator.py # Laser process parameters
+│   └── laser_parameter_generator.py # Laser monitoring data (LBD - Laser Beam Diagnostics)
 │
 ├── process/             # Process data generators
 │   ├── stl_processor.py            # STL file processing
@@ -28,6 +32,8 @@ data_generation/
     ├── stop_mongodb.py             # Stop MongoDB container
     └── mongodb_status.py            # Check MongoDB container status
 ```
+
+python generation/scripts/populate_mongodb.py --stl-files frameGuide.stl --collections hatching_layers stl_models --delete-existing
 
 ## 🔄 Data Flow
 
@@ -44,9 +50,18 @@ data_generation/ → Phase 12 (NoSQL) → Framework
 ## 📊 Data Types Generated
 
 ### Sensor Data (`sensors/`)
-- **ISPM Data**: Melt pool temperature, size, thermal gradients, process events
+- **ISPM (In-Situ Process Monitoring) Data**: Multiple ISPM sensor types for comprehensive process monitoring
+  - **ISPM_Thermal**: Melt pool temperature, size, thermal gradients, cooling rates, process events
+  - **ISPM_Optical**: Photodiode signals, melt pool imaging, spatter detection, keyhole detection
+  - **ISPM_Acoustic**: Acoustic emission signals, frequency spectra, event detection (spatter, defects, anomalies)
+  - **ISPM_Strain**: Strain measurements, deformation/displacement, residual stress, warping detection
+  - **ISPM_Plume**: Vapor plume characteristics, geometry, composition, dynamics, contamination detection
 - **CT Scan Data**: Voxel grids, density maps, porosity maps, defect locations
-- **Laser Parameters**: Power, scan speed, energy density, hatch spacing
+- **Laser Monitoring Data (LBD)**: Laser Beam Diagnostics - Process parameters (setpoints/commanded values) and temporal sensor measurements:
+  - **Process Parameters**: Commanded power, scan speed, hatch spacing, energy density, exposure time, region type
+  - **Temporal Power Sensors**: Actual power, power error, power stability, power fluctuations
+  - **Beam Temporal Characteristics**: Pulse frequency, pulse duration, pulse energy, duty cycle, beam modulation
+  - **Laser System Health**: Laser temperature, cooling system, power supply, diode metrics, operating hours, pulse count
 
 ### Process Data (`process/`)
 - **STL Models**: Processed STL files with metadata (bounding box, volume, complexity)
@@ -140,7 +155,7 @@ python generation/scripts/populate_mongodb.py --n-models 5
 python generation/scripts/populate_mongodb.py --stl-files frameGuide.stl cube.stl
 
 # Populate only specific collections
-python generation/scripts/populate_mongodb.py --collections stl_models laser_parameters
+python generation/scripts/populate_mongodb.py --collections stl_models laser_monitoring_data ispm_thermal_monitoring_data ispm_optical_monitoring_data ispm_acoustic_monitoring_data ispm_strain_monitoring_data ispm_plume_monitoring_data
 ```
 
 **Note**: This direct population is for **demo/testing**. In production, data should go through the Phase 12 ingestion layer for validation and transformation.

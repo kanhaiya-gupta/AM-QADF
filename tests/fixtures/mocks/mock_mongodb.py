@@ -194,8 +194,14 @@ class MockMongoClient:
             self._collections[name] = MockCollection(name)
         return self._collections[name]
 
-    def store_file(self, data: bytes, filename: str, metadata: Optional[Dict[str, Any]] = None) -> str:
-        """Store a file in GridFS (mock)."""
+    def store_file(
+        self,
+        data: bytes,
+        filename: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        bucket_name: Optional[str] = None,
+    ) -> str:
+        """Store a file in GridFS (mock). Accepts bucket_name for OpenVDB/GridFS API compatibility."""
         file_id = f"file_{self._file_counter}"
         self._file_counter += 1
         self._files[file_id] = {
@@ -208,6 +214,10 @@ class MockMongoClient:
     def retrieve_file(self, file_id: str) -> Optional[bytes]:
         """Retrieve a file from GridFS (mock)."""
         return self._files.get(file_id, {}).get("data")
+
+    def get_file(self, file_id: str, bucket_name: Optional[str] = None) -> Optional[bytes]:
+        """Get a file from GridFS (mock). Alias for retrieve_file; bucket_name accepted for API compatibility."""
+        return self.retrieve_file(file_id)
 
     def delete_file(self, file_id: str) -> bool:
         """Delete a file from GridFS (mock)."""

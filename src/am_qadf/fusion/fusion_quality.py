@@ -1,16 +1,26 @@
 """
 Fusion Quality Assessment
 
-Assesses the quality of fused voxel signals:
-- Fusion Accuracy: Compare fused signal with individual signals
-- Signal Consistency: Check consistency between fused and source signals
-- Fusion Completeness: Assess coverage of fused signal
-- Quality Metrics: Overall fusion quality metrics
+Assesses the quality of fused voxel signals.
+Core computation is in C++ (am_qadf_native) only; no Python fallback.
+Requires am_qadf_native to be built with fusion quality bindings.
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+
+# C++ fusion quality (required)
+try:
+    from am_qadf_native.fusion import (
+        FusionQualityAssessor as CppFusionQualityAssessor,
+        FusionQualityResult as CppFusionQualityResult,
+    )
+    CPP_AVAILABLE = True
+except ImportError:
+    CPP_AVAILABLE = False
+    CppFusionQualityAssessor = None
+    CppFusionQualityResult = None
 
 
 @dataclass
@@ -41,13 +51,31 @@ class FusionQualityMetrics:
             result["residual_errors_shape"] = self.residual_errors.shape
         return result
 
+    @classmethod
+    def from_cpp_result(cls, cpp: Any) -> "FusionQualityMetrics":
+        """Build FusionQualityMetrics from C++ FusionQualityResult."""
+        return cls(
+            fusion_accuracy=float(cpp.fusion_accuracy),
+            signal_consistency=float(cpp.signal_consistency),
+            fusion_completeness=float(cpp.fusion_completeness),
+            quality_score=float(cpp.quality_score),
+            per_signal_accuracy=dict(cpp.per_signal_accuracy),
+            coverage_ratio=float(cpp.coverage_ratio),
+            residual_errors=None,  # C++ returns summary only
+        )
+
 
 class FusionQualityAssessor:
-    """Assesses quality of fused voxel signals."""
+    """Assesses quality of fused voxel signals. C++ only; no Python fallback."""
 
     def __init__(self):
-        """Initialize the fusion quality assessor."""
-        pass
+        """Initialize the fusion quality assessor. Requires am_qadf_native."""
+        if not CPP_AVAILABLE or CppFusionQualityAssessor is None:
+            raise ImportError(
+                "Fusion quality requires C++ bindings. "
+                "Build am_qadf_native with pybind11 and fusion quality (FusionQualityAssessor)."
+            )
+        self._cpp_assessor = CppFusionQualityAssessor()
 
     def assess_fusion_quality(
         self,
@@ -57,107 +85,34 @@ class FusionQualityAssessor:
     ) -> FusionQualityMetrics:
         """
         Assess quality of fused signal.
+        Numpy array input is not supported (no Python fallback). Use assess_from_grids()
+        with OpenVDB grids from VoxelGrid.get_grid().
+        """
+        raise NotImplementedError(
+            "Numpy array input is not supported. Use assess_from_grids(fused_grid, source_grids, fusion_weights) "
+            "with OpenVDB FloatGrid objects (e.g. from VoxelGrid.get_grid(signal_name))."
+        )
+
+    def assess_from_grids(
+        self,
+        fused_grid: Any,
+        source_grids: Dict[str, Any],
+        fusion_weights: Optional[Dict[str, float]] = None,
+    ) -> FusionQualityMetrics:
+        """
+        Assess quality using OpenVDB grids (C++ only).
 
         Args:
-            fused_array: Fused signal array
-            source_arrays: Dictionary mapping signal names to source arrays
-            fusion_weights: Optional weights used for fusion
+            fused_grid: OpenVDB FloatGrid (e.g. from VoxelGrid.get_grid(signal_name))
+            source_grids: Dict mapping signal name to OpenVDB FloatGrid
+            fusion_weights: Optional per-source weights
 
         Returns:
-            FusionQualityMetrics object
+            FusionQualityMetrics
         """
-        # Calculate coverage
-        valid_mask = (~np.isnan(fused_array)) & (fused_array != 0.0)
-        coverage_ratio = np.sum(valid_mask) / fused_array.size if fused_array.size > 0 else 0.0
-
-        # Calculate per-signal accuracy
-        per_signal_accuracy = {}
-        for signal_name, source_array in source_arrays.items():
-            # Check if arrays have compatible shapes
-            if fused_array.shape != source_array.shape:
-                per_signal_accuracy[signal_name] = 0.0
-                continue
-
-            # Compare fused with source where both are valid
-            both_valid = valid_mask & (~np.isnan(source_array)) & (source_array != 0.0)
-
-            if np.sum(both_valid) > 0:
-                fused_vals = fused_array[both_valid]
-                source_vals = source_array[both_valid]
-
-                # Calculate correlation as accuracy measure
-                if np.std(fused_vals) > 0 and np.std(source_vals) > 0:
-                    corr = np.corrcoef(fused_vals, source_vals)[0, 1]
-                    per_signal_accuracy[signal_name] = abs(corr) if not np.isnan(corr) else 0.0
-                else:
-                    per_signal_accuracy[signal_name] = 0.0
-            else:
-                per_signal_accuracy[signal_name] = 0.0
-
-        # Overall fusion accuracy (mean of per-signal accuracies)
-        fusion_accuracy = np.mean(list(per_signal_accuracy.values())) if per_signal_accuracy else 0.0
-
-        # Calculate signal consistency
-        # Consistency is how well fused signal represents all sources
-        consistency_scores = []
-        for signal_name, source_array in source_arrays.items():
-            # Check if arrays have compatible shapes
-            if fused_array.shape != source_array.shape:
-                continue
-
-            both_valid = valid_mask & (~np.isnan(source_array)) & (source_array != 0.0)
-
-            if np.sum(both_valid) > 0:
-                fused_vals = fused_array[both_valid]
-                source_vals = source_array[both_valid]
-
-                # Normalize for comparison
-                if np.max(fused_vals) > 0 and np.max(source_vals) > 0:
-                    fused_norm = fused_vals / np.max(fused_vals)
-                    source_norm = source_vals / np.max(source_vals)
-
-                    # Calculate consistency (1 - normalized RMSE)
-                    rmse = np.sqrt(np.mean((fused_norm - source_norm) ** 2))
-                    consistency = max(0.0, 1.0 - rmse)
-                    consistency_scores.append(consistency)
-
-        signal_consistency = np.mean(consistency_scores) if consistency_scores else 0.0
-
-        # Calculate residual errors
-        residual_errors = None
-        if source_arrays:
-            # Calculate weighted residual
-            residual_errors = np.zeros_like(fused_array)
-            total_weight = 0.0
-
-            for signal_name, source_array in source_arrays.items():
-                # Check if arrays have compatible shapes
-                if fused_array.shape != source_array.shape:
-                    continue
-
-                weight = fusion_weights.get(signal_name, 1.0) if fusion_weights else 1.0
-                both_valid = valid_mask & (~np.isnan(source_array)) & (source_array != 0.0)
-
-                if np.sum(both_valid) > 0:
-                    residual_errors[both_valid] += weight * np.abs(fused_array[both_valid] - source_array[both_valid])
-                    total_weight += weight
-
-            if total_weight > 0:
-                residual_errors[valid_mask] /= total_weight
-            residual_errors[~valid_mask] = np.nan
-
-        # Overall quality score (weighted combination)
-        quality_score = 0.4 * fusion_accuracy + 0.3 * signal_consistency + 0.3 * coverage_ratio
-
-        return FusionQualityMetrics(
-            fusion_accuracy=fusion_accuracy,
-            signal_consistency=signal_consistency,
-            fusion_completeness=coverage_ratio,
-            quality_score=quality_score,
-            per_signal_accuracy=per_signal_accuracy,
-            coverage_ratio=coverage_ratio,
-            residual_errors=residual_errors,
-        )
+        weights = fusion_weights if fusion_weights is not None else {}
+        cpp_result = self._cpp_assessor.assess(fused_grid, source_grids, weights)
+        return FusionQualityMetrics.from_cpp_result(cpp_result)
 
     def compare_fusion_strategies(
         self,
@@ -168,68 +123,10 @@ class FusionQualityAssessor:
     ) -> Dict[str, FusionQualityMetrics]:
         """
         Compare different fusion strategies.
-
-        Args:
-            voxel_data: Voxel domain data object
-            signals: List of signal names to fuse
-            strategies: List of fusion strategy names to compare
-            quality_scores: Optional quality scores per signal
-
-        Returns:
-            Dictionary mapping strategy names to FusionQualityMetrics
+        Requires VoxelFusion and grid-based fusion; use assess_from_grids() with
+        fused and source grids for quality assessment.
         """
-        from .voxel_fusion import VoxelFusion
-        from .data_fusion import FusionStrategy
-
-        results = {}
-
-        # Get source arrays
-        source_arrays = {}
-        for signal in signals:
-            try:
-                array = voxel_data.get_signal_array(signal, default=0.0)
-                # Check if array is actually valid (not just default empty array)
-                # An array is considered valid if it has non-zero size and contains non-default values
-                if array.size > 0:
-                    # Check if it's not just a single default value
-                    if array.size > 1 or (array.size == 1 and array[0] != 0.0):
-                        source_arrays[signal] = array
-            except Exception:
-                continue
-
-        if not source_arrays:
-            return results
-
-        # Try each strategy
-        strategy_map = {
-            "weighted_average": FusionStrategy.WEIGHTED_AVERAGE,
-            "average": FusionStrategy.AVERAGE,
-            "median": FusionStrategy.MEDIAN,
-            "max": FusionStrategy.MAX,
-            "min": FusionStrategy.MIN,
-        }
-
-        fusion_engine = VoxelFusion(use_quality_scores=quality_scores is not None)
-
-        for strategy_name in strategies:
-            if strategy_name not in strategy_map:
-                continue
-
-            try:
-                # Fuse with this strategy
-                fused_array = fusion_engine.fuse_voxel_signals(
-                    voxel_data,
-                    signals,
-                    fusion_strategy=strategy_map[strategy_name],
-                    quality_scores=quality_scores,
-                )
-
-                # Assess quality
-                metrics = self.assess_fusion_quality(fused_array, source_arrays, fusion_weights=quality_scores)
-
-                results[strategy_name] = metrics
-            except Exception as e:
-                print(f"⚠️ Error evaluating strategy {strategy_name}: {e}")
-                continue
-
-        return results
+        raise NotImplementedError(
+            "compare_fusion_strategies is not implemented without Python fallback. "
+            "Use assess_from_grids() with OpenVDB grids directly."
+        )

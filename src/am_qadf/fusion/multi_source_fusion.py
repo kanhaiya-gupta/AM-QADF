@@ -18,7 +18,6 @@ from datetime import datetime
 from enum import Enum
 
 from .data_fusion import FusionStrategy, DataFusion
-from .fusion_methods import get_fusion_method
 
 
 class MultiSourceFusion:
@@ -397,18 +396,12 @@ class MultiSourceFusion:
         if not signals:
             raise ValueError("No signals to fuse")
         
-        # Get fusion method
-        fusion_method = get_fusion_method(strategy)
-        
-        # Convert weights to list format if needed
-        weight_dict = None
-        if weights:
-            weight_dict = weights
-        
-        # Fuse signals
-        fused = fusion_method.fuse(
+        # Use DataFusion engine to fuse signals
+        # This uses the C++-backed fusion strategies via data_fusion.py
+        fused = self.fusion_engine.fuse_signals(
             signals=signals,
-            weights=weight_dict,
+            strategy=strategy,
+            weights=weights,
             quality_scores=quality_scores
         )
         

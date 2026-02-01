@@ -1,8 +1,11 @@
 """
-Data Fusion
+Data Fusion - C++ Wrapper
 
 Combine multiple signal sources into unified representation.
 Handles conflicting data and weighted averaging strategies.
+
+This module uses C++ GridFusion for core fusion operations.
+All core computation is done in C++.
 
 Note: This module was moved from synchronization to fusion as it deals with
 signal combination (fusion), not temporal/spatial alignment (synchronization).
@@ -11,6 +14,9 @@ signal combination (fusion), not temporal/spatial alignment (synchronization).
 from typing import Optional, Dict, List, Tuple, Any, Callable
 import numpy as np
 from enum import Enum
+
+from am_qadf_native.fusion import GridFusion
+from am_qadf_native import numpy_to_openvdb, openvdb_to_numpy
 
 
 class FusionStrategy(Enum):
@@ -51,6 +57,14 @@ class DataFusion:
         self.default_strategy = default_strategy
         self.default_weights = default_weights or {}
         self._source_qualities: Dict[str, float] = {}  # source_name -> quality score
+        
+        # Initialize C++ fusion engine (required)
+        if not CPP_AVAILABLE:
+            raise ImportError(
+                "C++ bindings not available. "
+                "Please build am_qadf_native with pybind11 bindings."
+            )
+        self._cpp_fusion = GridFusion()
 
     def register_source_quality(self, source_name: str, quality_score: float):
         """
@@ -118,75 +132,76 @@ class DataFusion:
         # Get all signal arrays
         source_names = list(signals.keys())
         signal_arrays = [signals[name] for name in source_names]
+        
+        # Check if arrays have compatible shapes
+        if len(signal_arrays) == 0:
+            raise ValueError("No signal arrays provided")
+        
+        first_shape = signal_arrays[0].shape
+        if not all(arr.shape == first_shape for arr in signal_arrays):
+            raise ValueError("All signal arrays must have the same shape")
 
-        # Stack into array (n_sources, ...)
-        stacked = np.stack(signal_arrays, axis=0)
-
+        # Check if strategy is supported by C++ GridFusion
+        supported_strategies = {
+            FusionStrategy.AVERAGE,
+            FusionStrategy.WEIGHTED_AVERAGE,
+            FusionStrategy.MEDIAN,
+            FusionStrategy.MAX,
+            FusionStrategy.MIN,
+        }
+        
+        if strategy not in supported_strategies:
+            raise ValueError(
+                f"Strategy {strategy} is not supported. "
+                f"Supported strategies: {[s.value for s in supported_strategies]}"
+            )
+        
+        # Convert NumPy arrays to OpenVDB FloatGrid
+        openvdb_grids = []
+        for arr in signal_arrays:
+            # Replace NaN with 0 for OpenVDB (OpenVDB doesn't support NaN)
+            arr_clean = np.nan_to_num(arr, nan=0.0)
+            # Use a default resolution (1.0) - actual resolution doesn't matter for fusion
+            grid = numpy_to_openvdb(arr_clean, resolution=1.0)
+            openvdb_grids.append(grid)
+        
+        # Fuse using C++
+        if strategy == FusionStrategy.WEIGHTED_AVERAGE and weights is not None:
+            # Use weighted fusion
+            weight_list = [weights.get(name, 1.0) for name in source_names]
+            fused_grid = self._cpp_fusion.fuse_weighted(openvdb_grids, weight_list)
+        else:
+            # Map strategy to C++ string
+            strategy_map = {
+                FusionStrategy.AVERAGE: "weighted_average",  # C++ uses weighted_average for average
+                FusionStrategy.WEIGHTED_AVERAGE: "weighted_average",
+                FusionStrategy.MEDIAN: "median",
+                FusionStrategy.MAX: "max",
+                FusionStrategy.MIN: "min",
+            }
+            cpp_strategy = strategy_map.get(strategy, "weighted_average")
+            fused_grid = self._cpp_fusion.fuse(openvdb_grids, cpp_strategy)
+        
+        # Convert back to NumPy
+        fused = openvdb_to_numpy(fused_grid)
+        
+        # Ensure shape matches input
+        if fused.shape != first_shape:
+            # Reshape if needed (shouldn't happen, but safety check)
+            if fused.size == np.prod(first_shape):
+                fused = fused.reshape(first_shape)
+            else:
+                raise ValueError(
+                    f"Shape mismatch: fused shape {fused.shape} != input shape {first_shape}"
+                )
+        
         # Apply mask if provided
         if mask is not None:
-            stacked = np.where(mask, stacked, np.nan)
-
-        # Compute weights
-        if weights is None:
-            weight_array = self.compute_weights(source_names, use_quality=True)
-        else:
-            weight_array = np.array([weights.get(name, 1.0) for name in source_names])
-            weight_array = weight_array / np.sum(weight_array)
-
-        # Reshape weights for broadcasting
-        weight_shape = (len(source_names),) + (1,) * (stacked.ndim - 1)
-        weight_array = weight_array.reshape(weight_shape)
-
-        # Apply fusion strategy
-        if strategy == FusionStrategy.AVERAGE:
-            fused = np.nanmean(stacked, axis=0)
-        elif strategy == FusionStrategy.WEIGHTED_AVERAGE:
-            # Weighted average
-            weighted_sum = np.nansum(stacked * weight_array, axis=0)
-            weight_sum = np.nansum(weight_array * ~np.isnan(stacked), axis=0)
-            fused = np.where(weight_sum > 0, weighted_sum / weight_sum, np.nan)
-        elif strategy == FusionStrategy.MEDIAN:
-            fused = np.nanmedian(stacked, axis=0)
-        elif strategy == FusionStrategy.MAX:
-            fused = np.nanmax(stacked, axis=0)
-        elif strategy == FusionStrategy.MIN:
-            fused = np.nanmin(stacked, axis=0)
-        elif strategy == FusionStrategy.FIRST:
-            # Use first non-NaN value
-            fused = stacked[0].copy()
-            for i in range(1, len(stacked)):
-                nan_mask = np.isnan(fused)
-                fused[nan_mask] = stacked[i][nan_mask]
-        elif strategy == FusionStrategy.LAST:
-            # Use last source as base, filling NaN from earlier sources
-            fused = stacked[-1].copy()
-            # Fill NaN positions from earlier sources (working backwards)
-            for i in range(len(stacked) - 2, -1, -1):
-                nan_mask = np.isnan(fused)
-                fused[nan_mask] = stacked[i][nan_mask]
-            # For LAST strategy: use first source's value only at first position if available
-            # This matches test expectations
-            if len(stacked) > 1 and len(fused) > 0 and not np.isnan(stacked[0][0]):
-                fused[0] = stacked[0][0]
-        elif strategy == FusionStrategy.QUALITY_BASED:
-            # Use source with highest quality
-            quality_scores = np.array([self._source_qualities.get(name, 0.5) for name in source_names])
-            best_idx = np.argmax(quality_scores)
-            fused = stacked[best_idx]
-        else:
-            # Default to average
-            fused = np.nanmean(stacked, axis=0)
-
-        # Replace NaN with 0 or keep NaN based on mask
-        # For FIRST/LAST strategies, we've already filled NaN from other sources,
-        # so only replace remaining NaN if mask is provided or for other strategies
-        if mask is not None:
             fused = np.where(mask, fused, 0.0)
-        elif strategy not in (FusionStrategy.FIRST, FusionStrategy.LAST):
-            # For other strategies, replace NaN with 0.0
+        else:
+            # Replace any remaining NaN/0 with 0
             fused = np.nan_to_num(fused, nan=0.0)
-        # For FIRST/LAST, keep any remaining NaN (shouldn't happen if all sources have values)
-
+        
         return fused
 
     def fuse_multiple_signals(

@@ -1,11 +1,19 @@
 """
-ISPM (In-Situ Process Monitoring) Data Generator
+ISPM_Thermal (In-Situ Process Monitoring - Thermal) Data Generator
 
-Generates realistic ISPM sensor data including:
+Generates realistic thermal ISPM sensor data including:
 - Melt pool temperature and size
 - Thermal gradients
+- Cooling rates
 - Process events
-- Layer-by-layer monitoring data
+- Layer-by-layer thermal monitoring data
+
+Note: ISPM is a broad category. This generator specifically handles ISPM_Thermal
+(thermal monitoring). Other ISPM types include:
+- ISPM_Optical: Photodiodes, cameras, melt pool imaging
+- ISPM_Acoustic: Acoustic emissions, sound sensors
+- ISPM_Strain: Strain gauges, deformation sensors
+- ISPM_Plume: Vapor plume monitoring
 """
 
 import numpy as np
@@ -18,24 +26,34 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ISPMDataPoint:
-    """Single ISPM data point."""
+class ISPMThermalDataPoint:
+    """Single ISPM_Thermal data point."""
     timestamp: datetime
     layer_index: int
     x: float
     y: float
     z: float
-    melt_pool_temperature: float  # Celsius
+    melt_pool_temperature: float  # Celsius (MPTmean - mean temperature)
     melt_pool_size: Dict[str, float]  # width, length, depth in mm
-    peak_temperature: float  # Celsius
+    peak_temperature: float  # Celsius (MPTmax - maximum temperature)
     cooling_rate: float  # K/s
     temperature_gradient: float  # K/mm
     process_event: Optional[str] = None  # e.g., "layer_start", "hatch_complete"
+    
+    # Additional fields from research (melt pool geometry)
+    melt_pool_area: Optional[float] = None  # mm² (MPA - melt pool area)
+    melt_pool_eccentricity: Optional[float] = None  # ratio (MPE - MPW/MPL)
+    melt_pool_perimeter: Optional[float] = None  # mm (MPP - melt pool perimeter)
+    
+    # Time over threshold metrics (cooling behavior)
+    time_over_threshold_1200K: Optional[float] = None  # ms (TOT1200K - above camera sensitivity)
+    time_over_threshold_1680K: Optional[float] = None  # ms (TOT1680K - above solidification ~1660K)
+    time_over_threshold_2400K: Optional[float] = None  # ms (TOT2400K - above upper threshold)
 
 
 @dataclass
-class ISPMGeneratorConfig:
-    """Configuration for ISPM data generation."""
+class ISPMThermalGeneratorConfig:
+    """Configuration for ISPM_Thermal data generation."""
     # Temperature ranges
     base_temperature: float = 1500.0  # Base melt pool temperature (Celsius)
     temperature_variation: float = 50.0  # Temperature variation (Celsius)
@@ -62,32 +80,34 @@ class ISPMGeneratorConfig:
     random_seed: Optional[int] = None
 
 
-class ISPMGenerator:
+class ISPMThermalGenerator:
     """
-    Generator for ISPM (In-Situ Process Monitoring) sensor data.
+    Generator for ISPM_Thermal (In-Situ Process Monitoring - Thermal) sensor data.
     
-    Creates realistic melt pool monitoring data with temporal and spatial variations.
+    Creates realistic thermal melt pool monitoring data with temporal and spatial variations.
+    This generator specifically handles ISPM_Thermal (thermal monitoring).
+    Other ISPM types include: ISPM_Optical, ISPM_Acoustic, ISPM_Strain, ISPM_Plume, etc.
     """
     
-    def __init__(self, config: Optional[ISPMGeneratorConfig] = None):
+    def __init__(self, config: Optional[ISPMThermalGeneratorConfig] = None):
         """
-        Initialize ISPM generator.
+        Initialize ISPM_Thermal generator.
         
         Args:
             config: Configuration for data generation
         """
-        self.config = config or ISPMGeneratorConfig()
+        self.config = config or ISPMThermalGeneratorConfig()
         if self.config.random_seed is not None:
             np.random.seed(self.config.random_seed)
         
-        logger.info(f"ISPMGenerator initialized with config: {self.config}")
+        logger.info(f"ISPMThermalGenerator initialized with config: {self.config}")
     
     def generate_for_layer(self,
                              layer_index: int,
                              layer_z: float,
                              n_points: Optional[int] = None,
                              start_time: Optional[datetime] = None,
-                             bounding_box: Optional[Dict[str, Tuple[float, float]]] = None) -> List[ISPMDataPoint]:
+                             bounding_box: Optional[Dict[str, Tuple[float, float]]] = None) -> List[ISPMThermalDataPoint]:
         """
         Generate ISPM data for a single layer.
         
@@ -161,13 +181,55 @@ class ISPMGenerator:
                 self.config.temperature_gradient_std
             ))
             
+            # Calculate additional geometric fields (from research article)
+            # Melt pool area (MPA): approximate as ellipse area = π * (width/2) * (length/2)
+            melt_pool_area = np.pi * (melt_pool_size['width'] / 2.0) * (melt_pool_size['length'] / 2.0)
+            
+            # Melt pool eccentricity (MPE): ratio of width to length (minor/major axis)
+            # Eccentricity of ellipse: e = sqrt(1 - (b²/a²)) where a=length/2, b=width/2
+            # But research uses simple ratio MPW/MPL
+            melt_pool_eccentricity = melt_pool_size['width'] / melt_pool_size['length'] if melt_pool_size['length'] > 0 else 0.0
+            
+            # Melt pool perimeter (MPP): approximate as ellipse perimeter
+            # Ramanujan's approximation: P ≈ π * [3(a+b) - sqrt((3a+b)(a+3b))]
+            a = melt_pool_size['length'] / 2.0
+            b = melt_pool_size['width'] / 2.0
+            if a > 0 and b > 0:
+                melt_pool_perimeter = np.pi * (3 * (a + b) - np.sqrt((3 * a + b) * (a + 3 * b)))
+            else:
+                melt_pool_perimeter = 0.0
+            
+            # Time over threshold metrics (TOT) - cooling behavior
+            # These represent time periods where temperature exceeds threshold
+            # Simulate based on cooling rate and temperature
+            temp_kelvin = temperature + 273.15  # Convert to Kelvin
+            
+            # TOT1200K: Time above camera sensitivity threshold
+            if temp_kelvin > 1200.0:
+                # Time to cool from current temp to 1200K: t = (T - 1200) / cooling_rate
+                time_over_threshold_1200K = max(0.0, (temp_kelvin - 1200.0) / cooling_rate * 1000.0)  # Convert to ms
+            else:
+                time_over_threshold_1200K = 0.0
+            
+            # TOT1680K: Time above solidification temperature (~1660K)
+            if temp_kelvin > 1680.0:
+                time_over_threshold_1680K = max(0.0, (temp_kelvin - 1680.0) / cooling_rate * 1000.0)  # Convert to ms
+            else:
+                time_over_threshold_1680K = 0.0
+            
+            # TOT2400K: Time above upper threshold
+            if temp_kelvin > 2400.0:
+                time_over_threshold_2400K = max(0.0, (temp_kelvin - 2400.0) / cooling_rate * 1000.0)  # Convert to ms
+            else:
+                time_over_threshold_2400K = 0.0
+            
             # Process events (occasional)
             process_event = None
             if np.random.random() < 0.01:  # 1% chance
                 events = ["layer_start", "hatch_complete", "contour_complete", "layer_complete"]
                 process_event = np.random.choice(events)
             
-            data_point = ISPMDataPoint(
+            data_point = ISPMThermalDataPoint(
                 timestamp=timestamp,
                 layer_index=layer_index,
                 x=x,
@@ -178,7 +240,13 @@ class ISPMGenerator:
                 peak_temperature=peak_temperature,
                 cooling_rate=cooling_rate,
                 temperature_gradient=temperature_gradient,
-                process_event=process_event
+                process_event=process_event,
+                melt_pool_area=melt_pool_area,
+                melt_pool_eccentricity=melt_pool_eccentricity,
+                melt_pool_perimeter=melt_pool_perimeter,
+                time_over_threshold_1200K=time_over_threshold_1200K,
+                time_over_threshold_1680K=time_over_threshold_1680K,
+                time_over_threshold_2400K=time_over_threshold_2400K
             )
             data_points.append(data_point)
         
@@ -347,7 +415,23 @@ class ISPMGenerator:
         if anomaly_type != "large_melt_pool":
             melt_pool_size = base_data_point.melt_pool_size.copy()
         
-        return ISPMDataPoint(
+        # Recalculate geometric fields for anomalous data point
+        melt_pool_area = np.pi * (melt_pool_size['width'] / 2.0) * (melt_pool_size['length'] / 2.0)
+        melt_pool_eccentricity = melt_pool_size['width'] / melt_pool_size['length'] if melt_pool_size['length'] > 0 else 0.0
+        a = melt_pool_size['length'] / 2.0
+        b = melt_pool_size['width'] / 2.0
+        if a > 0 and b > 0:
+            melt_pool_perimeter = np.pi * (3 * (a + b) - np.sqrt((3 * a + b) * (a + 3 * b)))
+        else:
+            melt_pool_perimeter = 0.0
+        
+        # Recalculate TOT metrics
+        temp_kelvin = temperature + 273.15
+        time_over_threshold_1200K = max(0.0, (temp_kelvin - 1200.0) / base_data_point.cooling_rate * 1000.0) if temp_kelvin > 1200.0 else 0.0
+        time_over_threshold_1680K = max(0.0, (temp_kelvin - 1680.0) / base_data_point.cooling_rate * 1000.0) if temp_kelvin > 1680.0 else 0.0
+        time_over_threshold_2400K = max(0.0, (temp_kelvin - 2400.0) / base_data_point.cooling_rate * 1000.0) if temp_kelvin > 2400.0 else 0.0
+        
+        return ISPMThermalDataPoint(
             timestamp=base_data_point.timestamp,
             layer_index=base_data_point.layer_index,
             x=base_data_point.x,
@@ -358,6 +442,12 @@ class ISPMGenerator:
             peak_temperature=peak_temperature,
             cooling_rate=base_data_point.cooling_rate,
             temperature_gradient=base_data_point.temperature_gradient,
-            process_event=base_data_point.process_event
+            process_event=base_data_point.process_event,
+            melt_pool_area=melt_pool_area,
+            melt_pool_eccentricity=melt_pool_eccentricity,
+            melt_pool_perimeter=melt_pool_perimeter,
+            time_over_threshold_1200K=time_over_threshold_1200K,
+            time_over_threshold_1680K=time_over_threshold_1680K,
+            time_over_threshold_2400K=time_over_threshold_2400K
         )
 

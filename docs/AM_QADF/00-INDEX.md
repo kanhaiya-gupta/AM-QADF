@@ -39,6 +39,9 @@
 - [08. Configuration](08-configuration.md) - Configuration options
 - [09. Performance](09-performance.md) - Performance considerations
 
+### Implementation
+- [12. Python and C++](12-python-and-cpp.md) - Python API and C++ native extension
+
 ### Support
 - [10. Troubleshooting](10-troubleshooting.md) - Common issues and solutions
 - [11. Contributing](11-contributing.md) - Contributing guidelines

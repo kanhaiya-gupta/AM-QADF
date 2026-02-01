@@ -1,102 +1,92 @@
 """
-Inverse Distance Weighting (IDW) Interpolation
+Inverse Distance Weighting (IDW) Interpolation - C++ Wrapper
 
-Vectorized IDW interpolation using power parameter for distance weighting.
-Formula: v = sum(s_i / d_i^p) / sum(1 / d_i^p)
+Thin Python wrapper for C++ IDW interpolation implementation.
+All core computation is done in C++.
 """
 
 import numpy as np
-from typing import Dict, Optional
+from typing import Dict
+
+try:
+    from am_qadf_native.signal_mapping import IDWMapper
+    CPP_AVAILABLE = True
+except ImportError:
+    CPP_AVAILABLE = False
+    IDWMapper = None
 
 from .base import InterpolationMethod
-from ..utils._performance import performance_monitor
-from ...voxelization.voxel_grid import VoxelGrid
+from ...voxelization.uniform_resolution import VoxelGrid
+from ..utils._conversion import (
+    voxelgrid_to_floatgrid,
+    floatgrid_to_voxelgrid,
+    points_to_cpp_points,
+)
 
 
 class IDWInterpolation(InterpolationMethod):
     """
-    Vectorized Inverse Distance Weighting (IDW) interpolation.
-
-    Similar to linear interpolation but uses power parameter for distance weighting.
-    Formula: v = sum(s_i / d_i^p) / sum(1 / d_i^p)
+    IDW interpolation - C++ wrapper.
+    
+    This is a thin wrapper around the C++ IDWMapper implementation.
+    All core computation is done in C++.
     """
 
-    def __init__(self, power: float = 2.0, k_neighbors: int = 8, radius: Optional[float] = None):
+    def __init__(self, power: float = 2.0, k_neighbors: int = 10):
         """
         Initialize IDW interpolation.
 
         Args:
-            power: Power parameter for distance weighting (typically 2.0)
-            k_neighbors: Number of nearest neighbors to use
-            radius: Optional maximum search radius
+            power: IDW power parameter (default: 2.0)
+            k_neighbors: Number of nearest neighbors to use (default: 10)
         """
+        if not CPP_AVAILABLE:
+            raise ImportError(
+                "C++ bindings not available. "
+                "Please build am_qadf_native with pybind11 bindings."
+            )
+        self._mapper = IDWMapper(power, k_neighbors)
         self.power = power
         self.k_neighbors = k_neighbors
-        self.radius = radius
 
-    @performance_monitor
     def interpolate(self, points: np.ndarray, signals: Dict[str, np.ndarray], voxel_grid: VoxelGrid) -> VoxelGrid:
         """
-        Vectorized IDW interpolation.
+        Interpolate points to voxel grid using IDW method.
 
-        Formula: v = sum(s_i / d_i^p) / sum(1 / d_i^p)
+        Args:
+            points: Array of points (N, 3) with (x, y, z) coordinates
+            signals: Dictionary mapping signal names to arrays (N,) of values
+            voxel_grid: Target voxel grid
+
+        Returns:
+            VoxelGrid with interpolated data
         """
         if len(points) == 0:
             return voxel_grid
 
-        try:
-            from scipy.spatial import cKDTree
-        except ImportError:
-            raise ImportError("scipy is required for IDW interpolation. " "Install with: pip install scipy")
+        if len(signals) == 0:
+            return voxel_grid
 
-        # Get unique voxel centers
-        voxel_indices = self._world_to_voxel_batch(points, voxel_grid)
-        unique_voxels = np.unique(voxel_indices, axis=0)
-        voxel_centers = voxel_grid.bbox_min + (unique_voxels + 0.5) * voxel_grid.resolution
+        # Convert points to C++ format
+        # Note: Points are in world coordinates, grid is at origin
+        # Adjust points to be relative to grid origin (subtract bbox_min)
+        points_cpp = points_to_cpp_points(points, bbox_min=voxel_grid.bbox_min)
 
-        # Build KDTree
-        tree = cKDTree(points)
-
-        # Find k nearest neighbors
-        if self.radius is not None:
-            distances_list, indices_list = tree.query(voxel_centers, k=self.k_neighbors, distance_upper_bound=self.radius)
-        else:
-            distances_list, indices_list = tree.query(voxel_centers, k=self.k_neighbors)
-
-        # Handle case where k_neighbors > available points
-        if len(points) < self.k_neighbors:
-            distances_list = distances_list.reshape(-1, len(points))
-            indices_list = indices_list.reshape(-1, len(points))
-
-        # Aggregate signals per voxel using IDW
-        voxel_data = {}
-        for voxel_idx, (voxel_center, nn_indices, nn_distances) in enumerate(zip(voxel_centers, indices_list, distances_list)):
-            voxel_key = tuple(unique_voxels[voxel_idx])
-
-            # Filter out invalid neighbors
-            valid_mask = np.isfinite(nn_distances) & (nn_distances > 0)
-            if not np.any(valid_mask):
+        # Process each signal separately
+        for signal_name, signal_values in signals.items():
+            if len(signal_values) != len(points):
                 continue
 
-            valid_indices = nn_indices[valid_mask]
-            valid_distances = nn_distances[valid_mask]
+            # Convert signal values to C++ format
+            values_cpp = signal_values.astype(np.float32).tolist()
 
-            # IDW weights: 1 / d^p
-            weights = 1.0 / (valid_distances**self.power + 1e-10)
-            weights = weights / weights.sum()  # Normalize
+            # Convert VoxelGrid to FloatGrid for this signal
+            openvdb_grid = voxelgrid_to_floatgrid(voxel_grid, signal_name, default=0.0)
 
-            # Aggregate signals
-            aggregated_signals = {}
-            for signal_name, signal_array in signals.items():
-                if len(signal_array) == len(points):
-                    nn_signals = signal_array[valid_indices]
-                    weighted_mean = np.sum(nn_signals * weights)
-                    aggregated_signals[signal_name] = float(weighted_mean)
+            # Call C++ mapper
+            self._mapper.map(openvdb_grid, points_cpp, values_cpp)
 
-            voxel_data[voxel_key] = {
-                "signals": aggregated_signals,
-                "count": len(valid_indices),
-            }
+            # Convert FloatGrid back to VoxelGrid
+            floatgrid_to_voxelgrid(openvdb_grid, voxel_grid, signal_name)
 
-        self._build_voxel_grid_batch(voxel_grid, voxel_data)
         return voxel_grid

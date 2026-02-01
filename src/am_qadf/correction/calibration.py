@@ -1,263 +1,146 @@
 """
-Calibration
+Calibration - C++ Wrapper
 
-Calibration data management and reference measurements.
+Thin Python wrapper for C++ calibration implementation.
+All core computation is done in C++.
 """
 
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
 import numpy as np
-from dataclasses import dataclass, field
-from datetime import datetime
+
+try:
+    from am_qadf_native.correction import Calibration, CalibrationData as CppCalibrationData
+    CPP_AVAILABLE = True
+except ImportError:
+    CPP_AVAILABLE = False
+    Calibration = None
+    CppCalibrationData = None
 
 
 @dataclass
 class ReferenceMeasurement:
-    """Represents a reference measurement for calibration."""
-
-    point: Tuple[float, float, float]  # Measured point
-    expected_point: Tuple[float, float, float]  # Expected (true) point
-    timestamp: Optional[datetime] = None
-    measurement_type: str = "manual"  # "manual", "ct_scan", "cmm", etc.
-    uncertainty: float = 0.0  # Measurement uncertainty (mm)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    """Reference measurement data."""
+    point: Tuple[float, float, float]
+    value: float
+    timestamp: Optional[float] = None
 
 
 @dataclass
 class CalibrationData:
-    """Calibration data for a coordinate system or sensor."""
-
-    name: str
-    calibration_date: datetime
-    reference_measurements: List[ReferenceMeasurement] = field(default_factory=list)
-    transformation_matrix: Optional[np.ndarray] = None  # 4x4 transformation
-    distortion_parameters: Dict[str, Any] = field(default_factory=dict)
-    uncertainty: float = 0.0  # Overall calibration uncertainty
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    def add_measurement(self, measurement: ReferenceMeasurement):
-        """Add a reference measurement."""
-        self.reference_measurements.append(measurement)
-
-    def compute_error(self) -> Dict[str, float]:
-        """
-        Compute calibration error from reference measurements.
-
-        Returns:
-            Dictionary of error metrics
-        """
-        if len(self.reference_measurements) == 0:
-            return {
-                "mean_error": 0.0,
-                "max_error": 0.0,
-                "rms_error": 0.0,
-                "num_measurements": 0,
-            }
-
-        errors = []
-        for meas in self.reference_measurements:
-            measured = np.array(meas.point)
-            expected = np.array(meas.expected_point)
-            error = np.linalg.norm(measured - expected)
-            errors.append(error)
-
-        errors = np.array(errors)
-
-        return {
-            "mean_error": float(np.mean(errors)),
-            "max_error": float(np.max(errors)),
-            "rms_error": float(np.sqrt(np.mean(errors**2))),
-            "std_error": float(np.std(errors)),
-            "num_measurements": len(self.reference_measurements),
-        }
+    """Calibration data structure - Python wrapper."""
+    sensor_id: str
+    calibration_type: str  # "intrinsic", "extrinsic", "distortion"
+    parameters: Dict[str, float]
+    reference_points: List[Tuple[float, float, float]]
+    measured_points: List[Tuple[float, float, float]]
 
 
 class CalibrationManager:
     """
-    Manage calibration data for multiple coordinate systems and sensors.
+    Calibration manager - C++ wrapper.
+    
+    This is a thin wrapper around the C++ Calibration implementation.
+    All core computation is done in C++.
     """
 
     def __init__(self):
         """Initialize calibration manager."""
-        self._calibrations: Dict[str, CalibrationData] = {}
+        if not CPP_AVAILABLE:
+            raise ImportError(
+                "C++ bindings not available. "
+                "Please build am_qadf_native with pybind11 bindings."
+            )
+        self._calibration = Calibration()
 
-    def register_calibration(self, name: str, calibration: CalibrationData):
+    def load_from_file(self, filename: str) -> CalibrationData:
         """
-        Register calibration data.
+        Load calibration data from file.
 
         Args:
-            name: Calibration name/identifier
-            calibration: CalibrationData object
-        """
-        self._calibrations[name] = calibration
+            filename: Path to calibration file
 
-    def get_calibration(self, name: str) -> Optional[CalibrationData]:
+        Returns:
+            CalibrationData object
         """
-        Get calibration data.
+        cpp_data = self._calibration.load_from_file(filename)
+        
+        # Convert C++ CalibrationData to Python CalibrationData
+        return CalibrationData(
+            sensor_id=cpp_data.sensor_id,
+            calibration_type=cpp_data.calibration_type,
+            parameters=dict(cpp_data.parameters),
+            reference_points=[tuple(p) for p in cpp_data.reference_points],
+            measured_points=[tuple(p) for p in cpp_data.measured_points]
+        )
+
+    def save_to_file(self, data: CalibrationData, filename: str):
+        """
+        Save calibration data to file.
 
         Args:
-            name: Calibration name
-
-        Returns:
-            CalibrationData or None
+            data: CalibrationData object
+            filename: Path to output file
         """
-        return self._calibrations.get(name)
+        # Convert Python CalibrationData to C++ CalibrationData
+        cpp_data = CppCalibrationData()
+        cpp_data.sensor_id = data.sensor_id
+        cpp_data.calibration_type = data.calibration_type
+        cpp_data.parameters = data.parameters
+        cpp_data.reference_points = [list(p) for p in data.reference_points]
+        cpp_data.measured_points = [list(p) for p in data.measured_points]
+        
+        self._calibration.save_to_file(cpp_data, filename)
 
-    def list_calibrations(self) -> List[str]:
+    def compute_calibration(
+        self,
+        reference_points: List[Tuple[float, float, float]],
+        measured_points: List[Tuple[float, float, float]],
+        calibration_type: str = "intrinsic"
+    ) -> CalibrationData:
         """
-        List all registered calibrations.
-
-        Returns:
-            List of calibration names
-        """
-        return list(self._calibrations.keys())
-
-    def estimate_transformation(self, calibration_name: str) -> Optional[np.ndarray]:
-        """
-        Estimate transformation matrix from calibration measurements.
-
-        Uses point cloud registration to find best-fit transformation.
+        Compute calibration parameters from reference and measured points.
 
         Args:
-            calibration_name: Name of calibration
+            reference_points: List of reference point coordinates
+            measured_points: List of measured point coordinates
+            calibration_type: Type of calibration ('intrinsic', 'extrinsic', 'distortion')
 
         Returns:
-            4x4 transformation matrix or None
+            CalibrationData object
         """
-        calibration = self.get_calibration(calibration_name)
-        if calibration is None or len(calibration.reference_measurements) == 0:
-            return None
+        ref_points_cpp = [list(p) for p in reference_points]
+        meas_points_cpp = [list(p) for p in measured_points]
+        
+        cpp_data = self._calibration.compute_calibration(
+            ref_points_cpp, meas_points_cpp, calibration_type
+        )
+        
+        # Convert to Python CalibrationData
+        return CalibrationData(
+            sensor_id=cpp_data.sensor_id,
+            calibration_type=cpp_data.calibration_type,
+            parameters=dict(cpp_data.parameters),
+            reference_points=[tuple(p) for p in cpp_data.reference_points],
+            measured_points=[tuple(p) for p in cpp_data.measured_points]
+        )
 
-        # Extract measured and expected points
-        measured_points = np.array([m.point for m in calibration.reference_measurements])
-        expected_points = np.array([m.expected_point for m in calibration.reference_measurements])
-
-        # Compute centroids
-        measured_centroid = np.mean(measured_points, axis=0)
-        expected_centroid = np.mean(expected_points, axis=0)
-
-        # Center points
-        measured_centered = measured_points - measured_centroid
-        expected_centered = expected_points - expected_centroid
-
-        # Compute rotation using SVD
-        H = measured_centered.T @ expected_centered
-        U, S, Vt = np.linalg.svd(H)
-        R = Vt.T @ U.T
-
-        # Ensure proper rotation (det(R) = 1)
-        if np.linalg.det(R) < 0:
-            Vt[-1, :] *= -1
-            R = Vt.T @ U.T
-
-        # Compute translation
-        t = expected_centroid - R @ measured_centroid
-
-        # Build 4x4 transformation matrix
-        matrix = np.eye(4)
-        matrix[0:3, 0:3] = R
-        matrix[0:3, 3] = t
-
-        return matrix
-
-    def validate_calibration(self, calibration_name: str, threshold: float = 0.1) -> Dict[str, Any]:  # mm
+    def validate_calibration(self, data: CalibrationData) -> bool:
         """
-        Validate calibration quality.
+        Validate calibration data.
 
         Args:
-            calibration_name: Name of calibration
-            threshold: Maximum acceptable error (mm)
+            data: CalibrationData object
 
         Returns:
-            Dictionary of validation results
+            True if calibration is valid
         """
-        calibration = self.get_calibration(calibration_name)
-        if calibration is None:
-            return {"valid": False, "error": "Calibration not found"}
-
-        error_metrics = calibration.compute_error()
-
-        # Check if errors are within threshold
-        valid = error_metrics["mean_error"] <= threshold and error_metrics["max_error"] <= threshold * 2
-
-        return {
-            "valid": valid,
-            "error_metrics": error_metrics,
-            "threshold": threshold,
-            "within_threshold": error_metrics["max_error"] <= threshold * 2,
-        }
-
-    def apply_calibration_correction(self, points: np.ndarray, calibration_name: str) -> np.ndarray:
-        """
-        Apply calibration correction to points.
-
-        Args:
-            points: Points to correct (N, 3)
-            calibration_name: Name of calibration to use
-
-        Returns:
-            Corrected points
-        """
-        calibration = self.get_calibration(calibration_name)
-        if calibration is None:
-            return points
-
-        points = np.asarray(points)
-        if points.ndim == 1:
-            points = points.reshape(1, -1)
-
-        # Use transformation matrix if available
-        if calibration.transformation_matrix is not None:
-            # Import TransformationMatrix with fallback
-            try:
-                from ..synchronization.spatial_transformation import (
-                    TransformationMatrix,
-                )
-            except ImportError:
-                # Fallback: create a simple transformation wrapper
-                import sys
-                from pathlib import Path
-
-                current_file = Path(__file__).resolve()
-                spatial_path = current_file.parent.parent / "synchronization" / "spatial_transformation.py"
-                if spatial_path.exists():
-                    import importlib.util
-
-                    spec = importlib.util.spec_from_file_location("spatial_transformation", spatial_path)
-                    spatial_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(spatial_module)
-                    TransformationMatrix = spatial_module.TransformationMatrix
-                else:
-                    raise ImportError("Could not import TransformationMatrix")
-
-            trans = TransformationMatrix(matrix=calibration.transformation_matrix)
-            return trans.apply(points)
-
-        # Otherwise, estimate from measurements
-        transformation = self.estimate_transformation(calibration_name)
-        if transformation is not None:
-            # Import TransformationMatrix with fallback
-            try:
-                from ..synchronization.spatial_transformation import (
-                    TransformationMatrix,
-                )
-            except ImportError:
-                # Fallback: create a simple transformation wrapper
-                import sys
-                from pathlib import Path
-
-                current_file = Path(__file__).resolve()
-                spatial_path = current_file.parent.parent / "synchronization" / "spatial_transformation.py"
-                if spatial_path.exists():
-                    import importlib.util
-
-                    spec = importlib.util.spec_from_file_location("spatial_transformation", spatial_path)
-                    spatial_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(spatial_module)
-                    TransformationMatrix = spatial_module.TransformationMatrix
-                else:
-                    raise ImportError("Could not import TransformationMatrix")
-
-            trans = TransformationMatrix(matrix=transformation)
-            return trans.apply(points)
-
-        return points
+        # Convert to C++ CalibrationData
+        cpp_data = CppCalibrationData()
+        cpp_data.sensor_id = data.sensor_id
+        cpp_data.calibration_type = data.calibration_type
+        cpp_data.parameters = data.parameters
+        cpp_data.reference_points = [list(p) for p in data.reference_points]
+        cpp_data.measured_points = [list(p) for p in data.measured_points]
+        
+        return self._calibration.validate_calibration(cpp_data)

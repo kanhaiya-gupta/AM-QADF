@@ -155,6 +155,9 @@ The `-n` flag shows what would happen without executing.
 Actually execute workflows (takes longer, uses Docker):
 
 ```bash
+# Run C++ only
+act workflow_dispatch -W .github/workflows/ci.yml --input cpp_only=true -j cpp
+
 # Run CI workflow
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main
 
@@ -182,19 +185,29 @@ act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -n
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main
 
 # Test specific job
+act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j test
+act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j cpp
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j lint
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j notebooks
 ```
 
 **Inputs:**
 - `branch`: Choose branch (main, develop, or all)
+- `run_tests`: Run test suites (default: true)
+- `run_performance`: Run performance tests (default: false)
+- `execute_notebooks`: Execute notebooks (default: false)
 
 **Jobs:**
-- `test`: Multi-version Python testing
+- `test`: Python 3.11 testing (unit, integration, e2e, property_based, utils, coverage)
+- `cpp`: C++ build and test (system deps + pybind11, third-party from release, CMake, ctest)
 - `lint`: Code quality checks
 - `test-matrix`: Parallel test suite execution
-- `performance`: Performance benchmarks (only on main branch)
+- `performance`: Performance regression and benchmarks (when `run_performance` is true)
 - `notebooks`: Notebook validation
+
+**C++ job with act:** The C++ job downloads third-party dependencies (OpenVDB, ITK, mongo-cxx-driver) from the GitHub release **"Third-party dependencies"** (tag `v0.2.0` or as set in the workflow). No local install folders or `--bind` are needed — local act and GitHub CI behave the same. Example: `act workflow_dispatch -W .github/workflows/ci.yml --input cpp_only=true -j cpp`
+
+**Building C++ natively (WSL/Linux without act):** If you run CMake/ninja directly on your machine using the same release zip, OpenVDB in the zip was built against **Boost 1.82**. Your system may have an older Boost (e.g. 1.74), which causes linker errors. See [Third-Party Release Asset: Build Environment](../Infrastructure/third-party/RELEASE_ASSET_BUILD.md#local-build-wsl-or-linux-with-the-release-zip) for how to provide Boost 1.82 or rebuild the zip with your system Boost.
 
 ### PR Workflow
 
@@ -209,7 +222,7 @@ act workflow_dispatch -W .github/workflows/pr.yml --input pr_number=1 --input br
 ```
 
 **Inputs:**
-- `pr_number`: Pull request number (required)
+- `pr_number`: Pull request number (optional; for PR comments)
 - `branch`: Target branch (main or develop)
 
 **Jobs:**
@@ -229,7 +242,7 @@ act workflow_dispatch -W .github/workflows/nightly.yml -n
 ```
 
 **Jobs:**
-- `nightly-tests`: Full test suite across Python versions
+- `nightly-tests`: Full test suite (Python 3.11)
 - `code-quality`: Security scans (Bandit, Safety)
 - `notebooks`: Comprehensive notebook validation
 
@@ -254,7 +267,7 @@ act release -W .github/workflows/release.yml -n
 **Note**: The documentation build job only runs on actual `release` events, not `workflow_dispatch`. When testing manually, only the build-and-test and notebooks jobs will run.
 
 **Jobs:**
-- `build-and-test`: Full test suite and report generation
+- `build-and-test`: Full Python test suite, C++ build and test, report generation
 - `documentation`: Documentation build (only on release events)
 - `notebooks`: Release-ready notebook validation
 
@@ -268,8 +281,11 @@ Run only specific jobs from a workflow:
 # Run only the lint job
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j lint
 
-# Run only the test job
+# Run only the Python test job
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j test
+
+# Run only the C++ build and test job
+act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j cpp
 
 # Run only notebooks validation
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j notebooks
@@ -392,7 +408,7 @@ Some GitHub Actions features don't work locally:
 - **Secrets**: Need to be set manually or via environment variables
 - **PR comments**: Won't post comments to actual PRs
 - **Artifacts**: May behave differently
-- **Package versions**: Local Docker images may use different Ubuntu versions than GitHub runners**
+- **Package versions**: Local Docker images may use different Ubuntu versions than GitHub runners
 - **Codecov upload**: Requires authentication tokens not available locally
 
 **Workaround**: Use `-n` (dry-run) to validate structure, then test on GitHub for full functionality.
@@ -526,15 +542,15 @@ act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -n
 
 ### CI Workflow
 
-- Tests multiple Python versions (3.9, 3.10, 3.11)
-- Runs test matrix across all test suites
+- Tests Python 3.11 and runs C++ build/test (system deps + pybind11, third-party from release, CMake, ctest)
+- Runs test matrix across unit, integration, e2e, property_based, utils
 - Includes linting and code quality checks
-- Performance tests only run on main branch pushes (won't run in local test)
+- Performance tests run only when `run_performance=true` (default: false)
 - Includes comprehensive notebook validation
 
 ### PR Workflow
 
-- PR number input is required
+- PR number input is optional (for PR comments)
 - Comments won't be posted to actual PRs
 - Use for validating workflow structure
 - Includes quick notebook validation
@@ -549,8 +565,8 @@ act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -n
 ### Release Workflow
 
 - Requires version input for manual trigger
-- Documentation build only runs on `release` events (not `workflow_dispatch`)
-- Similar to CI workflow - runs full test suite and generates reports
+- Runs Python tests, then C++ build and test, then documentation and notebooks
+- Documentation build job only runs on `release` events (not `workflow_dispatch`)
 - Artifact upload may fail locally (expected)
 - Release-ready notebook validation
 
@@ -559,6 +575,9 @@ act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -n
 ```bash
 # List all workflows
 act -l
+
+# Run only C++ build and test
+act workflow_dispatch -W .github/workflows/ci.yml --input cpp_only=true -j cpp
 
 # Dry-run CI workflow
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main --input run_tests=true --input run_performance=false -n
@@ -570,6 +589,8 @@ act workflow_dispatch -W .github/workflows/ci.yml --input branch=main --input ru
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main --input run_tests=true --input run_performance=true
 
 # Test specific job
+act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j test
+act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j cpp
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j lint
 act workflow_dispatch -W .github/workflows/ci.yml --input branch=main -j notebooks
 
@@ -607,7 +628,7 @@ While `act` is great for local testing, you'll also need to trigger workflows di
    - **Run performance tests**: `false` (default) - set to `true` to run performance regression tests
 5. Click **"Run workflow"**
 
-**What it does**: Runs the full test suite, linting, code quality checks, and notebook validation across Python 3.9, 3.10, and 3.11. Performance tests only run if explicitly enabled.
+**What it does**: Runs the full Python test suite (3.11), C++ build and test, linting, code quality checks, and notebook validation. Performance tests only run if `run_performance` is set to true.
 
 ### 2. PR Checks Workflow
 
@@ -633,7 +654,7 @@ While `act` is great for local testing, you'll also need to trigger workflows di
 4. Enter **version**: e.g., `v1.0.0`
 5. Click **"Run workflow"`
 
-**What it does**: Runs full test suite, generates test reports, and validates notebooks for a release.
+**What it does**: Runs full Python test suite, C++ build and test, generates test reports, and validates notebooks for a release.
 
 **Note**: This workflow also runs automatically when you publish a GitHub release. When manually triggered, it runs the full test suite with coverage reporting.
 
@@ -646,7 +667,7 @@ The nightly workflow runs automatically **weekly** (Sundays at 2 AM UTC). You ca
 3. Click **"Run workflow"**
 4. Click **"Run workflow"** (no inputs needed)
 
-**What it does**: Runs comprehensive test suite across multiple Python versions, performs security checks, and validates notebooks.
+**What it does**: Runs comprehensive test suite (Python 3.11), performs security checks, and validates notebooks.
 
 ### Workflow Status
 
@@ -779,5 +800,5 @@ Remember: Always use `-n` (dry-run) first, then run actual tests when needed. So
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

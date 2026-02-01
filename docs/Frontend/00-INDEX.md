@@ -32,6 +32,9 @@
 - [08. Configuration](08-configuration.md) - Configuration options
 - [09. Performance](09-performance.md) - Performance considerations
 
+### Plans
+- [Client Update Plan](CLIENT_UPDATE_PLAN.md) - Pipeline order and am_qadf_native alignment (workflow steps, backend stack)
+
 ### Support
 - [10. Troubleshooting](10-troubleshooting.md) - Common issues and solutions
 - [11. Contributing](11-contributing.md) - Contributing guidelines

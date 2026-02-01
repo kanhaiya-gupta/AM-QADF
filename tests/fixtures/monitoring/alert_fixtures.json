@@ -1,0 +1,262 @@
+[
+  {
+    "alert_id": "alert_0",
+    "alert_type": "power",
+    "severity": "critical",
+    "message": "Test alert 0 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:31:18.321544",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 194.08571676918996,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_1",
+    "alert_type": "power",
+    "severity": "critical",
+    "message": "Test alert 1 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:26:18.321688",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 151.83901810364438,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_2",
+    "alert_type": "power",
+    "severity": "medium",
+    "message": "Test alert 2 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:21:18.321718",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 98.71934244034432,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_3",
+    "alert_type": "power",
+    "severity": "high",
+    "message": "Test alert 3 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:16:18.321742",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 183.94113749299223,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_4",
+    "alert_type": "defect",
+    "severity": "critical",
+    "message": "Test alert 4 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:11:18.321766",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 164.96870933552546,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_5",
+    "alert_type": "temperature",
+    "severity": "low",
+    "message": "Test alert 5 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:06:18.321791",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 196.38918225943934,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_6",
+    "alert_type": "defect",
+    "severity": "medium",
+    "message": "Test alert 6 from MonitoringFixture",
+    "timestamp": "2026-01-30T17:01:18.321813",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 105.48069328139314,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_7",
+    "alert_type": "defect",
+    "severity": "critical",
+    "message": "Test alert 7 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:56:18.321840",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 102.00854118241206,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_8",
+    "alert_type": "defect",
+    "severity": "medium",
+    "message": "Test alert 8 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:51:18.321863",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 142.97077179586853,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_9",
+    "alert_type": "defect",
+    "severity": "low",
+    "message": "Test alert 9 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:46:18.321889",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 114.94749682376502,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_10",
+    "alert_type": "power",
+    "severity": "high",
+    "message": "Test alert 10 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:41:18.321910",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 96.73926327824502,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_11",
+    "alert_type": "defect",
+    "severity": "critical",
+    "message": "Test alert 11 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:36:18.321941",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 123.963421195243,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_12",
+    "alert_type": "temperature",
+    "severity": "medium",
+    "message": "Test alert 12 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:31:18.321972",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 174.22111536716164,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_13",
+    "alert_type": "power",
+    "severity": "critical",
+    "message": "Test alert 13 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:26:18.321994",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 141.7081326096334,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_14",
+    "alert_type": "defect",
+    "severity": "low",
+    "message": "Test alert 14 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:21:18.322014",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 85.57404952639973,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_15",
+    "alert_type": "power",
+    "severity": "high",
+    "message": "Test alert 15 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:16:18.322038",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 100.46289484247498,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_16",
+    "alert_type": "power",
+    "severity": "medium",
+    "message": "Test alert 16 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:11:18.322058",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 193.86626447039998,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_17",
+    "alert_type": "defect",
+    "severity": "medium",
+    "message": "Test alert 17 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:06:18.322077",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 177.00768177397532,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  },
+  {
+    "alert_id": "alert_18",
+    "alert_type": "quality_threshold",
+    "severity": "medium",
+    "message": "Test alert 18 from MonitoringFixture",
+    "timestamp": "2026-01-30T16:01:18.322096",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 91.72065368076606,
+      "threshold": 150.0
+    },
+    "acknowledged": true
+  },
+  {
+    "alert_id": "alert_19",
+    "alert_type": "defect",
+    "severity": "critical",
+    "message": "Test alert 19 from MonitoringFixture",
+    "timestamp": "2026-01-30T15:56:18.322115",
+    "source": "TestSource",
+    "metadata": {
+      "metric_value": 132.81829924875217,
+      "threshold": 150.0
+    },
+    "acknowledged": false
+  }
+]

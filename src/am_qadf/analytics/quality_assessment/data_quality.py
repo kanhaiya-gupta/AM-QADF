@@ -234,12 +234,15 @@ class DataQualityAnalyzer:
         if len(signal_arrays) < 2:
             return 1.0
 
-        # Calculate correlation between signals
+        # Calculate correlation between signals (only when same length / same grid)
         correlations = []
         for i in range(len(signal_arrays)):
             for j in range(i + 1, len(signal_arrays)):
                 arr1 = signal_arrays[i].flatten()
                 arr2 = signal_arrays[j].flatten()
+
+                if arr1.size != arr2.size:
+                    continue  # Different voxel counts; skip this pair
 
                 # Remove NaN and zero values
                 mask = (~np.isnan(arr1)) & (~np.isnan(arr2)) & (arr1 != 0) & (arr2 != 0)

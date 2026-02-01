@@ -145,10 +145,20 @@ def sample_ct_points():
 
 @pytest.fixture
 def mock_mongodb_client():
-    """Create a mock MongoDB client."""
+    """Create a mock MongoDB client.
+
+    config.url and config.database must be real strings so C++ MongoDBQueryClient(uri, db_name)
+    receives (str, str); MagicMock objects cause TypeError in pybind11.
+
+    Uses fixed non-secret values only. Tests that call the C++ client skip when MongoDB is not
+    available or not authenticated (no env file or credentials in repo).
+    """
     mock_client = MagicMock()
     mock_client.db = MagicMock()
     mock_client.gridfs = MagicMock()
+    mock_client.config = MagicMock()
+    mock_client.config.url = "mongodb://localhost:27017"
+    mock_client.config.database = "am_qadf_data"
     return mock_client
 
 
@@ -169,19 +179,6 @@ def mock_query_client():
     }
 
     return mock_client
-
-
-@pytest.fixture
-def mock_spark_session():
-    """Create a mock Spark session."""
-    try:
-        from unittest.mock import MagicMock
-
-        mock_spark = MagicMock()
-        mock_spark.createDataFrame.return_value = MagicMock()
-        return mock_spark
-    except ImportError:
-        pytest.skip("Mock Spark session not available")
 
 
 # ============================================================================

@@ -66,12 +66,12 @@ def main():
         ('Linear', LinearInterpolation(k_neighbors=8)),
         ('IDW', IDWInterpolation(power=2.0, k_neighbors=8)),
         ('Gaussian KDE', GaussianKDEInterpolation(bandwidth=1.0)),
-        ('RBF (Gaussian)', RBFInterpolation(kernel='gaussian', epsilon=1.0, smoothing=0.0))
+        ('RBF (Gaussian)', RBFInterpolation(kernel_type='gaussian', epsilon=1.0))
     ]
     
-    # Note: RBF has O(N³) complexity, so use with smaller datasets or Spark backend
+    # Note: RBF has O(N³) complexity, so use with smaller datasets
     print("\n   Note: RBF interpolation has O(N³) complexity.")
-    print("         For large datasets, consider using Spark backend or alternative methods.")
+    print("         For large datasets, consider lower-resolution grids or faster methods (e.g. nearest, linear).")
     
     print("\n3. Testing interpolation methods...")
     results = {}

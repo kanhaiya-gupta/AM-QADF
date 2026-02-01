@@ -1,0 +1,39 @@
+# C++ unit tests for processing (Catch2).
+# Aligned with docs/Tests/Test_New_Plans.md (tests/unit/cpp/processing/).
+
+cmake_minimum_required(VERSION 3.15)
+project(am_qadf_processing_cpp_tests LANGUAGES CXX)
+
+# Catch2
+include(FetchContent)
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG        v3.4.0
+)
+set(CATCH_INSTALL_DOCS OFF CACHE BOOL "" FORCE)
+set(CATCH_INSTALL_EXTRAS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(Catch2)
+
+set(PROCESSING_TEST_SOURCES
+    test_signal_processing.cpp
+    test_signal_generation.cpp
+)
+
+if(TARGET am_qadf_native_static)
+    add_executable(test_processing_cpp ${PROCESSING_TEST_SOURCES})
+    target_link_libraries(test_processing_cpp PRIVATE Catch2::Catch2WithMain am_qadf_native_static)
+else()
+    add_executable(test_processing_cpp ${PROCESSING_TEST_SOURCES})
+    target_link_libraries(test_processing_cpp PRIVATE Catch2::Catch2WithMain)
+    target_include_directories(test_processing_cpp PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/am_qadf_native/include
+    )
+    message(STATUS "test_processing_cpp: link will fail until am_qadf_native_static is added in root")
+endif()
+
+target_compile_features(test_processing_cpp PRIVATE cxx_std_17)
+
+include(CTest)
+add_test(NAME test_processing_cpp COMMAND test_processing_cpp)
+set_tests_properties(test_processing_cpp PROPERTIES LABELS "cpp;unit;processing")

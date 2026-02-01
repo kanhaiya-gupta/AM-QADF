@@ -6,31 +6,18 @@ The infrastructure layer requires the following Python packages:
 
 ### Required Packages
 
-Add these to your `requirements/requirements_core.txt` or create `requirements/requirements_infrastructure.txt`:
-
-```
-python-dotenv>=1.0.0    # For loading .env files
-pymongo>=4.6.0          # For MongoDB connections
-```
-
-### Optional Packages (for other databases)
-
-```
-cassandra-driver>=3.28.0    # For Cassandra (if needed)
-neo4j>=5.15.0               # For Neo4j (if needed)
-elasticsearch>=8.11.0       # For Elasticsearch (if needed)
-```
+Core infrastructure dependencies are in the project root `requirements.txt` (python-dotenv, pymongo). Optional database drivers (Cassandra, Neo4j, Elasticsearch) can be added if needed.
 
 ## Installation
 
 ```bash
-pip install python-dotenv pymongo
+pip install -r requirements.txt
 ```
 
-Or if using requirements file:
+Or install only infrastructure-related packages:
 
 ```bash
-pip install -r requirements/requirements_core.txt
+pip install python-dotenv pymongo
 ```
 
 ## Docker Integration
@@ -40,6 +27,19 @@ The infrastructure layer automatically works with Docker Compose:
 1. **Environment Variables**: Set in `docker-compose.yml` or `.env` files
 2. **Service Discovery**: Uses service names (e.g., `mongodb:27017`)
 3. **Health Checks**: Built-in health checks for Docker healthcheck endpoints
+
+### Environment File Loading
+
+Docker Compose automatically loads `.env` files from the same directory as the compose file. To use a different env file:
+
+```bash
+# From project root, specify env file explicitly
+docker-compose -f docker/docker-compose.dev.yml --env-file development.env up -d
+
+# Or from docker directory
+cd docker
+docker-compose -f docker-compose.dev.yml --env-file ../development.env up -d
+```
 
 ### Example Docker Compose Integration
 

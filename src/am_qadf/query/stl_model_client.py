@@ -224,18 +224,48 @@ class STLModelClient(BaseQueryClient):
         Query STL models (implements BaseQueryClient interface).
 
         Note: STL models don't have signals, so this returns metadata only.
+        When spatial.component_id (model_id) is set, returns that model's metadata
+        in a shape the frontend expects (bounding_box, file_path, etc. at top level).
 
         Args:
-            spatial: Spatial query (not used for STL models)
+            spatial: Spatial query; component_id is used to filter by model_id
             temporal: Temporal query (not used for STL models)
             signal_types: Signal types (not used for STL models)
 
         Returns:
-            QueryResult with empty points/signals but metadata
+            QueryResult with empty points/signals but metadata (single model or list)
         """
-        # STL models don't have point data or signals
-        # This method exists for interface compatibility
         from .base_query_client import QueryResult
+
+        model_id = getattr(spatial, "component_id", None) if spatial else None
+
+        if model_id:
+            doc = self.get_model(model_id)
+            if doc is not None:
+                # Merge doc.metadata with top-level doc fields (same locations as notebook)
+                meta = dict(doc.get("metadata") or {})
+                for key in ("model_id", "model_name", "filename", "file_path", "original_stem", "original_filename"):
+                    if key in doc and doc[key] is not None:
+                        meta[key] = doc[key]
+                # Bounding box: doc.bounding_box, doc.metadata.bounding_box, or doc.metadata.coordinate_system.bounding_box
+                if "bounding_box" not in meta or not meta["bounding_box"]:
+                    if doc.get("bounding_box"):
+                        meta["bounding_box"] = doc["bounding_box"]
+                    elif isinstance(meta.get("coordinate_system"), dict) and meta["coordinate_system"].get("bounding_box"):
+                        meta["bounding_box"] = meta["coordinate_system"]["bounding_box"]
+                # Dimensions: doc.dimensions or doc.metadata.dimensions
+                if "dimensions" not in meta or not meta["dimensions"]:
+                    if doc.get("dimensions"):
+                        meta["dimensions"] = doc["dimensions"]
+                # Volume from metadata if present
+                if doc.get("volume") is not None and meta.get("volume") is None:
+                    meta["volume"] = doc["volume"]
+                # Always show the queried model_id/model_name so UI reflects what the user chose
+                meta["model_id"] = model_id
+                meta["model_name"] = doc.get("model_name") or meta.get("model_name") or model_id
+                return QueryResult(points=[], signals={}, metadata=meta)
+            # Model not found: return empty metadata so UI shows "no data"
+            return QueryResult(points=[], signals={}, metadata={})
 
         models = self.list_models()
         return QueryResult(points=[], signals={}, metadata={"models": models, "count": len(models)})
@@ -257,8 +287,8 @@ class STLModelClient(BaseQueryClient):
             Tuple of (bbox_min, bbox_max)
         """
         if component_id:
-            bbox = self.get_bounding_box(component_id)
-            if bbox:
+            bbox = self.get_model_bounding_box(component_id)
+            if bbox is not None:
                 return bbox
 
         # Return default bounding box if not found

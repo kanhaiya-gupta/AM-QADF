@@ -1,86 +1,84 @@
 """
-Nearest Neighbor Interpolation
+Nearest Neighbor Interpolation - C++ Wrapper
 
-Vectorized nearest neighbor interpolation method.
-Assigns each point to its nearest voxel and aggregates multiple points per voxel.
+Thin Python wrapper for C++ nearest neighbor interpolation implementation.
+All core computation is done in C++.
 """
 
 import numpy as np
 from typing import Dict
 
+try:
+    from am_qadf_native.signal_mapping import NearestNeighborMapper
+    CPP_AVAILABLE = True
+except ImportError:
+    CPP_AVAILABLE = False
+    NearestNeighborMapper = None
+
 from .base import InterpolationMethod
-from ...voxelization.voxel_grid import VoxelGrid
-
-
-from ..utils._performance import performance_monitor
+from ...voxelization.uniform_resolution import VoxelGrid
+from ..utils._conversion import (
+    voxelgrid_to_floatgrid,
+    floatgrid_to_voxelgrid,
+    points_to_cpp_points,
+)
 
 
 class NearestNeighborInterpolation(InterpolationMethod):
     """
-    Vectorized nearest neighbor interpolation.
-
-    Assigns each point to its nearest voxel and aggregates multiple points
-    per voxel using mean, max, min, or sum aggregation.
+    Nearest neighbor interpolation - C++ wrapper.
+    
+    This is a thin wrapper around the C++ NearestNeighborMapper implementation.
+    All core computation is done in C++.
     """
 
-    @performance_monitor
+    def __init__(self):
+        """Initialize nearest neighbor interpolation."""
+        if not CPP_AVAILABLE:
+            raise ImportError(
+                "C++ bindings not available. "
+                "Please build am_qadf_native with pybind11 bindings."
+            )
+        self._mapper = NearestNeighborMapper()
+
     def interpolate(self, points: np.ndarray, signals: Dict[str, np.ndarray], voxel_grid: VoxelGrid) -> VoxelGrid:
         """
-        Vectorized nearest neighbor interpolation.
+        Interpolate points to voxel grid using nearest neighbor method.
 
-        Algorithm:
-        1. Calculate all voxel indices at once (vectorized)
-        2. Group points by voxel using NumPy
-        3. Aggregate signals per voxel (vectorized)
-        4. Build voxel grid structure in batch
+        Args:
+            points: Array of points (N, 3) with (x, y, z) coordinates
+            signals: Dictionary mapping signal names to arrays (N,) of values
+            voxel_grid: Target voxel grid
+
+        Returns:
+            VoxelGrid with interpolated data
         """
         if len(points) == 0:
             return voxel_grid
 
-        # Step 1: Vectorized voxel index calculation
-        voxel_indices = self._world_to_voxel_batch(points, voxel_grid)  # (N, 3)
+        if len(signals) == 0:
+            return voxel_grid
 
-        # Step 2: Group points by voxel using NumPy
-        # Convert to structured array for efficient unique operation
-        voxel_indices_structured = (
-            np.ascontiguousarray(voxel_indices).view(np.dtype([("i", int), ("j", int), ("k", int)])).flatten()
-        )
+        # Convert points to C++ format
+        # Note: Points are in world coordinates, grid is at origin
+        # Adjust points to be relative to grid origin (subtract bbox_min)
+        points_cpp = points_to_cpp_points(points, bbox_min=voxel_grid.bbox_min)
 
-        unique_voxels, inverse_indices = np.unique(voxel_indices_structured, return_inverse=True)
+        # Process each signal separately (C++ mapper handles one signal at a time)
+        for signal_name, signal_values in signals.items():
+            if len(signal_values) != len(points):
+                continue
 
-        # Convert back to regular array
-        unique_voxels_array = np.array([(v["i"], v["j"], v["k"]) for v in unique_voxels], dtype=int)
+            # Convert signal values to C++ format
+            values_cpp = signal_values.astype(np.float32).tolist()
 
-        # Step 3: Aggregate signals per voxel (vectorized)
-        voxel_data = {}
-        for voxel_idx, unique_voxel in enumerate(unique_voxels_array):
-            voxel_key = tuple(unique_voxel)
-            point_mask = inverse_indices == voxel_idx
+            # Convert VoxelGrid to FloatGrid for this signal
+            openvdb_grid = voxelgrid_to_floatgrid(voxel_grid, signal_name, default=0.0)
 
-            # Aggregate signals for this voxel
-            aggregated_signals = {}
-            for signal_name, signal_array in signals.items():
-                if len(signal_array) == len(points):
-                    voxel_signal_values = signal_array[point_mask]
-                    if len(voxel_signal_values) > 0:
-                        # Use aggregation method from voxel_grid
-                        if voxel_grid.aggregation == "mean":
-                            aggregated_signals[signal_name] = float(np.mean(voxel_signal_values))
-                        elif voxel_grid.aggregation == "max":
-                            aggregated_signals[signal_name] = float(np.max(voxel_signal_values))
-                        elif voxel_grid.aggregation == "min":
-                            aggregated_signals[signal_name] = float(np.min(voxel_signal_values))
-                        elif voxel_grid.aggregation == "sum":
-                            aggregated_signals[signal_name] = float(np.sum(voxel_signal_values))
-                        else:
-                            aggregated_signals[signal_name] = float(np.mean(voxel_signal_values))
+            # Call C++ mapper
+            self._mapper.map(openvdb_grid, points_cpp, values_cpp)
 
-            voxel_data[voxel_key] = {
-                "signals": aggregated_signals,
-                "count": int(np.sum(point_mask)),
-            }
-
-        # Step 4: Build voxel grid structure (batch)
-        self._build_voxel_grid_batch(voxel_grid, voxel_data)
+            # Convert FloatGrid back to VoxelGrid
+            floatgrid_to_voxelgrid(openvdb_grid, voxel_grid, signal_name)
 
         return voxel_grid

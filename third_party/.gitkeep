@@ -1,0 +1,2 @@
+# This file ensures the third_party directory is tracked by git
+# even when empty. Dependencies will be added here.

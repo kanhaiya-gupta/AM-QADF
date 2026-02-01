@@ -223,14 +223,14 @@ from am_qadf.query import CTScanClient
 client = CTScanClient(mongo_client, use_mongodb=True)
 ```
 
-### InSituMonitoringClient
+### ISPM clients (ISPMThermalClient, ISPMOpticalClient, etc.)
 
-Query ISPM monitoring data.
+Query ISPM (In-Situ Process Monitoring) data. Use the client for the sensor type: thermal, optical, acoustic, strain, plume.
 
 ```python
-from am_qadf.query import InSituMonitoringClient
+from am_qadf.query import ISPMThermalClient
 
-client = InSituMonitoringClient(mongo_client, use_mongodb=True)
+client = ISPMThermalClient(mongo_client=mongo_client, use_mongodb=True)
 ```
 
 ### STLModelClient

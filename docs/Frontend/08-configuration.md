@@ -58,6 +58,27 @@ ENABLE_STREAMING=false
 ENABLE_MONITORING=true
 ```
 
+### Redis Configuration (Optional - for Caching)
+
+```env
+# Redis Connection (Optional - falls back to in-memory cache if not configured)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=  # Leave empty if no password
+REDIS_DEFAULT_TTL=3600  # Default cache TTL in seconds (1 hour)
+REDIS_MAX_CACHE_SIZE_MB=2048  # Maximum Redis memory for cache (2GB)
+
+# Redis Connection Pool Settings
+REDIS_MAX_CONNECTIONS=50
+REDIS_SOCKET_TIMEOUT=5
+REDIS_SOCKET_CONNECT_TIMEOUT=5
+REDIS_RETRY_ON_TIMEOUT=true
+REDIS_DECODE_RESPONSES=true
+```
+
+**Note**: Redis is optional. If Redis is not available or not configured, the system automatically falls back to in-memory caching. This ensures the system continues to work even without Redis.
+
 ### Logging Configuration
 
 ```env

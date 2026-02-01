@@ -29,10 +29,10 @@ By the end of this notebook, you will:
 
 ### Spatial Alignment
 
-- **Translation**: Shift coordinates
-- **Rotation**: Rotate coordinate systems
-- **Scaling**: Scale coordinate systems
-- **Transformation Matrix**: Combined transformations
+- **Bbox-corner correspondence**: Transformation is computed from 8 bounding-box corners per source (24 permutations × 56 triplets); no point-to-point matching. See [SPATIAL_ALIGNMENT_DESIGN.md](../../Infrastructure/SPATIAL_ALIGNMENT_DESIGN.md).
+- **Translation, rotation, scaling**: Combined into a 4×4 similarity transform (Kabsch + Umeyama).
+- **Transformation Matrix**: 4×4; apply to points to bring them into reference (hatching) frame.
+- **Python API**: `UnifiedQueryClient.query_and_transform_points(...)`.
 
 ### Coordinate System Alignment
 

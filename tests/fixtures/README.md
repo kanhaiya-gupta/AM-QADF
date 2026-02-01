@@ -24,7 +24,6 @@ fixtures/
 └── mocks/                   # Mock objects and utilities
     ├── __init__.py          # Mock exports
     ├── mock_mongodb.py      # MongoDB mock client
-    ├── mock_spark.py        # Spark session mocks
     └── mock_query_clients.py  # Query client mocks
 ```
 
@@ -133,16 +132,6 @@ from tests.fixtures.mocks import MockMongoClient, MockCollection
 # Create a mock MongoDB client
 mock_client = MockMongoClient()
 collection = mock_client.get_collection('test_collection')
-```
-
-### Spark Mocks
-
-```python
-from tests.fixtures.mocks import MockSparkSession, MockDataFrame
-
-# Create a mock Spark session
-spark = MockSparkSession()
-df = spark.createDataFrame([{'x': 1, 'y': 2}])
 ```
 
 ### Query Client Mocks

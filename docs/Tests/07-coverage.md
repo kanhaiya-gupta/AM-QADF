@@ -1,5 +1,7 @@
 # Coverage Requirements
 
+Coverage applies to **Python** code only. C++ tests are run via ctest; coverage for C++ can be enabled with `ENABLE_COVERAGE=ON` and gcov/lcov (see [15. Build Tests](15-build-tests.md)).
+
 ## Coverage Targets
 
 | Module | Target Coverage | Critical Paths |
@@ -36,14 +38,14 @@
 ## Measuring Coverage
 
 ```bash
-# Run with coverage
-pytest tests/ --cov=am_qadf --cov-report=term-missing
+# Run with coverage (Python)
+pytest tests/ --cov=src/am_qadf --cov-report=term-missing
 
 # Generate HTML report
-pytest tests/ --cov=am_qadf --cov-report=html
+pytest tests/ --cov=src/am_qadf --cov-report=html
 
 # Check specific module
-pytest tests/unit/voxelization/ --cov=am_qadf.voxelization
+pytest tests/unit/python/voxelization/ --cov=src/am_qadf.voxelization
 ```
 
 ## Related

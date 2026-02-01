@@ -2,18 +2,45 @@
 Voxel Grid Storage
 
 Storage and retrieval of voxel grids in MongoDB.
-Uses GridFS for large signal arrays and metadata collection for grid information.
+Uses OpenVDB format (.vdb files) stored in GridFS for efficient storage.
+Each signal is stored as a named FloatGrid in a single .vdb file.
+
+REQUIRES: OpenVDB C++ bindings (am_qadf_native.io, am_qadf_native.voxelization).
+Raises ImportError if OpenVDB bindings are not available.
+No fallback to legacy format - OpenVDB is required.
 """
 
 import numpy as np
 import pickle
 import gzip
 import io
-from typing import Dict, List, Optional, Tuple, Any
+import tempfile
+import os
+from typing import Dict, List, Optional, Tuple, Any, Union
 from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _to_bson_safe(obj: Any) -> Any:
+    """Convert numpy types and nested structures to BSON-serializable Python types."""
+    if isinstance(obj, dict):
+        return {k: _to_bson_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_to_bson_safe(x) for x in obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
+
+
+# Import OpenVDB IO bindings (required, no fallback)
+from am_qadf_native.io import VDBWriter, OpenVDBReader
+from am_qadf_native import numpy_to_openvdb, openvdb_to_numpy
 
 
 class VoxelGridStorage:
@@ -46,6 +73,8 @@ class VoxelGridStorage:
         tags: Optional[List[str]] = None,
         model_name: Optional[str] = None,
         configuration_metadata: Optional[Dict[str, Any]] = None,
+        local_vdb_hatching_path: Optional[str] = None,
+        local_vdb_stl_geometry_path: Optional[str] = None,
     ) -> str:
         """
         Save a voxel grid to MongoDB.
@@ -57,7 +86,11 @@ class VoxelGridStorage:
             description: Optional description
             tags: Optional tags for categorization
             model_name: Optional model name for easier identification
-            configuration_metadata: Optional dictionary with user-selected configuration:
+            configuration_metadata: Optional dictionary with user-selected configuration
+            local_vdb_hatching_path: Optional path to local VDB file (hatching/signals)
+            local_vdb_stl_geometry_path: Optional path to local VDB file (STL geometry/occupancy)
+
+            configuration_metadata may contain:
                 - grid_type: Type of grid (uniform/adaptive/multi)
                 - resolution_mode: Resolution mode (uniform/per_axis/adaptive)
                 - uniform_resolution: Resolution value for uniform mode
@@ -97,8 +130,8 @@ class VoxelGridStorage:
             if configuration_metadata:
                 metadata["configuration_metadata"] = configuration_metadata
 
-            # Create minimal document first to get the ID
-            initial_doc = {
+            # Create minimal document first to get the ID (BSON-safe: no numpy.int64/float64)
+            initial_doc = _to_bson_safe({
                 "model_id": model_id,
                 "model_name": model_name or "",
                 "grid_name": grid_name,
@@ -108,9 +141,11 @@ class VoxelGridStorage:
                 "signal_references": {},  # Will be updated
                 "voxel_data_reference": None,  # Will be updated
                 "available_signals": list(voxel_grid.available_signals),
+                "local_vdb_hatching_path": local_vdb_hatching_path,
+                "local_vdb_stl_geometry_path": local_vdb_stl_geometry_path,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
-            }
+            })
             result = collection.insert_one(initial_doc)
             grid_id = str(result.inserted_id)
             logger.info(f"Created new grid document: {grid_id}")
@@ -126,8 +161,130 @@ class VoxelGridStorage:
             else:
                 logger.warning(f"No configuration_metadata provided for grid {grid_name}. Grid will have limited metadata.")
 
-        # Store signal arrays in GridFS (now with actual grid_id)
-        # OPTIMIZATION: Store sparse representation instead of dense arrays
+        # Store grids in OpenVDB format (required, no fallback)
+        signal_references = {}
+        
+        # Store as OpenVDB .vdb file (one file with multiple named grids)
+        vdb_file_id = self._store_voxel_grid_openvdb(grid_id, voxel_grid)
+        if not vdb_file_id:
+            raise RuntimeError(f"Failed to store voxel grid as OpenVDB format for grid {grid_id}")
+        
+        # Store reference to .vdb file
+        signal_references["_openvdb_file"] = vdb_file_id
+        logger.info(f"Stored voxel grid as OpenVDB format: {vdb_file_id}")
+
+        # Update document with signal references and voxel data reference (BSON-safe).
+        # OpenVDB path: no separate voxel_data_reference; all data is in the .vdb file.
+        voxel_data_ref = None
+        grid_doc = _to_bson_safe({
+            "model_id": model_id,
+            "model_name": model_name or "",  # Store model_name for easier identification
+            "grid_name": grid_name,
+            "description": description or "",
+            "tags": tags or [],
+            "metadata": metadata,
+            "signal_references": signal_references,
+            "voxel_data_reference": voxel_data_ref,
+            "available_signals": list(voxel_grid.available_signals),
+            "local_vdb_hatching_path": local_vdb_hatching_path,
+            "local_vdb_stl_geometry_path": local_vdb_stl_geometry_path,
+            "updated_at": datetime.utcnow(),
+        })
+
+        if existing:
+            # Update existing
+            collection.update_one({"_id": existing["_id"]}, {"$set": grid_doc})
+        else:
+            # Update the document we just created
+            collection.update_one({"_id": result.inserted_id}, {"$set": grid_doc})
+
+        logger.info(f"Saved voxel grid: {grid_id} ({grid_name}) for model {model_id}")
+        return grid_id
+
+    def _store_voxel_grid_openvdb(self, grid_id: str, voxel_grid: Any) -> Optional[str]:
+        """
+        Store voxel grid as OpenVDB .vdb file.
+        
+        Each signal is stored as a named FloatGrid in a single .vdb file.
+        
+        Args:
+            grid_id: Grid ID
+            voxel_grid: VoxelGrid or AdaptiveResolutionGrid instance
+            
+        Returns:
+            GridFS file ID for the .vdb file, or None if failed
+        """
+        
+        try:
+            writer = VDBWriter()
+            grids = []
+            
+            # Convert each signal to FloatGrid
+            for signal_name in voxel_grid.available_signals:
+                try:
+                    # Get signal as numpy array
+                    signal_array = voxel_grid.get_signal_array(signal_name, default=0.0)
+                    
+                    # Convert to OpenVDB FloatGrid
+                    float_grid = numpy_to_openvdb(signal_array, voxel_grid.resolution)
+                    
+                    # Set grid name to signal name (OpenVDB supports named grids)
+                    # Note: This requires accessing the grid's name property
+                    # OpenVDB grids can be named for identification in multi-grid files
+                    grids.append(float_grid)
+                except Exception as e:
+                    logger.warning(f"Failed to convert signal {signal_name} to FloatGrid: {e}")
+                    continue
+            
+            if len(grids) == 0:
+                logger.warning("No signals to store in OpenVDB format")
+                return None
+            
+            # Write all grids to temporary .vdb file
+            with tempfile.NamedTemporaryFile(suffix='.vdb', delete=False) as tmp_file:
+                vdb_filename = tmp_file.name
+            
+            try:
+                # Write multiple grids with signal names to single .vdb file
+                signal_names = list(voxel_grid.available_signals)
+                writer.write_multiple_with_names(grids, signal_names, vdb_filename)
+                
+                # Read .vdb file and store in GridFS
+                with open(vdb_filename, 'rb') as f:
+                    vdb_data = f.read()
+                
+                # Store in GridFS (MongoDBClient uses single GridFS bucket, no bucket_name)
+                file_id = self.mongo_client.store_file(
+                    vdb_data,
+                    filename=f"{grid_id}.vdb",
+                    metadata={
+                        "grid_id": grid_id,
+                        "data_type": "voxel_grid",
+                        "format": "openvdb",
+                        "num_signals": len(grids),
+                        "signals": list(voxel_grid.available_signals),
+                    }
+                )
+                
+                return str(file_id)
+            finally:
+                # Clean up temporary file
+                if os.path.exists(vdb_filename):
+                    os.unlink(vdb_filename)
+                    
+        except Exception as e:
+            logger.error(f"Error storing voxel grid as OpenVDB format: {e}", exc_info=True)
+            return None
+
+    def _store_voxel_grid_legacy(self, grid_id: str, voxel_grid: Any) -> Tuple[Dict[str, str], Optional[str]]:
+        """
+        Store voxel grid in legacy format (dictionary/numpy arrays).
+        
+        This is kept for backward compatibility and as fallback.
+        
+        Returns:
+            Tuple of (signal_references dict, voxel_data_ref)
+        """
         signal_references = {}
         for signal_name in voxel_grid.available_signals:
             try:
@@ -168,35 +325,12 @@ class VoxelGridStorage:
                         for idx, voxel_obj in region_grid.voxels.items():
                             key = f"{region_key}_{idx}"
                             voxel_data[key] = dict(voxel_obj.signals) if hasattr(voxel_obj, "signals") else {}
-
                 if voxel_data:
                     voxel_data_ref = self._store_voxel_data(grid_id, voxel_data)
             except Exception as e:
                 logger.warning(f"Failed to store adaptive grid voxel data: {e}")
-
-        # Update document with signal references and voxel data reference
-        grid_doc = {
-            "model_id": model_id,
-            "model_name": model_name or "",  # Store model_name for easier identification
-            "grid_name": grid_name,
-            "description": description or "",
-            "tags": tags or [],
-            "metadata": metadata,
-            "signal_references": signal_references,
-            "voxel_data_reference": voxel_data_ref,
-            "available_signals": list(voxel_grid.available_signals),
-            "updated_at": datetime.utcnow(),
-        }
-
-        if existing:
-            # Update existing
-            collection.update_one({"_id": existing["_id"]}, {"$set": grid_doc})
-        else:
-            # Update the document we just created
-            collection.update_one({"_id": result.inserted_id}, {"$set": grid_doc})
-
-        logger.info(f"Saved voxel grid: {grid_id} ({grid_name}) for model {model_id}")
-        return grid_id
+        
+        return signal_references, voxel_data_ref
 
     def load_voxel_grid(self, grid_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -227,22 +361,16 @@ class VoxelGridStorage:
                 logger.warning(f"Grid not found: {grid_id}")
                 return None
 
-            # Load signal arrays from GridFS
-            signal_arrays = {}
-            for signal_name, signal_ref in grid_doc.get("signal_references", {}).items():
-                try:
-                    signal_array = self._load_signal_array(signal_ref)
-                    signal_arrays[signal_name] = signal_array
-                except Exception as e:
-                    logger.warning(f"Failed to load signal {signal_name}: {e}")
-
-            # Load voxel data structure
-            voxel_data = None
-            if grid_doc.get("voxel_data_reference"):
-                try:
-                    voxel_data = self._load_voxel_data(grid_doc["voxel_data_reference"])
-                except Exception as e:
-                    logger.warning(f"Failed to load voxel data: {e}")
+            # Load from OpenVDB format (required, no fallback)
+            signal_references = grid_doc.get("signal_references", {})
+            if "_openvdb_file" not in signal_references:
+                raise ValueError(
+                    f"Grid {grid_id} is not stored in OpenVDB format. "
+                    "Legacy format is no longer supported. Please re-save the grid."
+                )
+            
+            # Load from OpenVDB format
+            signal_arrays, voxel_data = self._load_voxel_grid_openvdb(signal_references["_openvdb_file"])
 
             return {
                 "grid_id": grid_id,
@@ -361,22 +489,21 @@ class VoxelGridStorage:
             return False
 
     def _extract_metadata(self, voxel_grid: Any) -> Dict[str, Any]:
-        """Extract metadata from voxel grid."""
+        """Extract metadata from voxel grid (BSON-safe: native int/float for MongoDB)."""
         metadata = {}
 
         if hasattr(voxel_grid, "bbox_min") and hasattr(voxel_grid, "bbox_max"):
-            metadata["bbox_min"] = (
-                voxel_grid.bbox_min.tolist() if isinstance(voxel_grid.bbox_min, np.ndarray) else list(voxel_grid.bbox_min)
-            )
-            metadata["bbox_max"] = (
-                voxel_grid.bbox_max.tolist() if isinstance(voxel_grid.bbox_max, np.ndarray) else list(voxel_grid.bbox_max)
-            )
+            bmin = voxel_grid.bbox_min.tolist() if isinstance(voxel_grid.bbox_min, np.ndarray) else list(voxel_grid.bbox_min)
+            bmax = voxel_grid.bbox_max.tolist() if isinstance(voxel_grid.bbox_max, np.ndarray) else list(voxel_grid.bbox_max)
+            metadata["bbox_min"] = [float(x) for x in bmin]
+            metadata["bbox_max"] = [float(x) for x in bmax]
 
         if hasattr(voxel_grid, "resolution"):
             metadata["resolution"] = float(voxel_grid.resolution)
 
         if hasattr(voxel_grid, "dims"):
-            metadata["dims"] = voxel_grid.dims.tolist() if isinstance(voxel_grid.dims, np.ndarray) else list(voxel_grid.dims)
+            dims = voxel_grid.dims.tolist() if isinstance(voxel_grid.dims, np.ndarray) else list(voxel_grid.dims)
+            metadata["dims"] = [int(x) for x in dims]
 
         if hasattr(voxel_grid, "aggregation"):
             metadata["aggregation"] = voxel_grid.aggregation
@@ -571,6 +698,89 @@ class VoxelGridStorage:
                 return signal_array
             except Exception as e2:
                 raise ValueError(f"Failed to load signal array: {e2}")
+
+    def _load_voxel_grid_openvdb(self, file_id: str) -> Tuple[Dict[str, np.ndarray], Optional[Dict]]:
+        """
+        Load voxel grid from OpenVDB .vdb file.
+        
+        Args:
+            file_id: GridFS file ID for the .vdb file
+            
+        Returns:
+            Tuple of (signal_arrays dict, voxel_data dict)
+        """
+        
+        try:
+            # Get .vdb file from GridFS
+            vdb_data = self.mongo_client.get_file(file_id)
+            
+            if not vdb_data:
+                raise ValueError(f"OpenVDB file not found: {file_id}")
+            
+            # Write to temporary file
+            with tempfile.NamedTemporaryFile(suffix='.vdb', delete=False) as tmp_file:
+                vdb_filename = tmp_file.name
+                tmp_file.write(vdb_data)
+            
+            try:
+                # Load all grids from .vdb file (by name)
+                reader = OpenVDBReader()
+                
+                # Load all grids as a map (grid_name -> FloatGridPtr)
+                grids_map = reader.load_all_grids(vdb_filename)
+                
+                # Convert each grid to numpy array
+                signal_arrays = {}
+                for signal_name, float_grid in grids_map.items():
+                    try:
+                        # Convert FloatGrid to numpy array
+                        signal_array = openvdb_to_numpy(float_grid)
+                        signal_arrays[signal_name] = signal_array
+                    except Exception as e:
+                        logger.warning(f"Failed to convert grid {signal_name} to numpy: {e}")
+                
+                # Return signal arrays and None for voxel_data (not needed for OpenVDB format)
+                return signal_arrays, None
+                
+            finally:
+                # Clean up temporary file
+                if os.path.exists(vdb_filename):
+                    os.unlink(vdb_filename)
+                    
+        except Exception as e:
+            logger.error(f"Error loading voxel grid from OpenVDB format: {e}", exc_info=True)
+            raise
+
+    def _load_voxel_grid_legacy(self, grid_doc: Dict[str, Any]) -> Tuple[Dict[str, np.ndarray], Optional[Dict]]:
+        """
+        Load voxel grid from legacy format (dictionary/numpy arrays).
+        
+        DEPRECATED: This method is kept for backward compatibility only.
+        It is NOT used as a fallback - OpenVDB is required.
+        May be used for reading old data only if explicitly needed.
+        
+        Returns:
+            Tuple of (signal_arrays dict, voxel_data dict)
+        """
+        signal_arrays = {}
+        for signal_name, signal_ref in grid_doc.get("signal_references", {}).items():
+            if signal_name == "_openvdb_file":
+                continue  # Skip OpenVDB file reference
+            try:
+                signal_array = self._load_signal_array(signal_ref)
+                signal_arrays[signal_name] = signal_array
+            except Exception as e:
+                logger.warning(f"Failed to load signal {signal_name}: {e}")
+
+        # Load voxel data structure
+        voxel_data = None
+        if grid_doc.get("voxel_data_reference"):
+            try:
+                voxel_data = self._load_voxel_data(grid_doc["voxel_data_reference"])
+            except Exception as e:
+                logger.warning(f"Failed to load voxel data: {e}")
+        
+        return signal_arrays, voxel_data
 
     def _store_voxel_data(self, grid_id: str, voxel_data: Dict) -> str:
         """Store voxel data structure in GridFS."""

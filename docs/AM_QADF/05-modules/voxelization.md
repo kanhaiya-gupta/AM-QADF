@@ -161,11 +161,15 @@ z = bbox_min[2] + (k + 0.5) * resolution
 - **Spatial Reference Frame**: All data mapped to the grid must use the same coordinate system
 - **Coordinate System Alignment**: Data must be aligned (see Synchronization Module) before mapping signals to ensure all sources use the same spatial reference frame
 
+## Grid Bounds: Union Bounds
+
+Grid creation uses **union bounds** by default: the bounding box is the union of aligned data from synchronization (e.g. from `query_and_transform_points` or unified alignment). This ensures the voxel grid covers all aligned point data. When explicit bounds are not provided, bounds can alternatively be taken from an STL geometry or from source-specific coordinates.
+
 ## Voxel Grid Creation Workflow
 
 ```mermaid
 flowchart TB
-    Start([Input Data]) --> DefineBBox["Define Bounding Box<br/>📍 (min, max)"]
+    Start([Input Data]) --> DefineBBox["Define Bounding Box<br/>📍 Union Bounds (min, max)"]
     
     DefineBBox --> SetResolution["Set Resolution<br/>📏 Voxel Size"]
     
@@ -317,6 +321,87 @@ graph LR
     class Fixed,Adaptive,MultiRes type
     class Simple,Variable,Large usecase
 ```
+
+## Grid Creation and Stored Metadata
+
+Grid creation (uniform, OpenVDB workflow) is triggered via the API (`POST /api/voxelization/create-grid`) or programmatically. When a grid is created with **union bounds** and **auto-save** enabled, the following is persisted.
+
+### Where Grid Creation Is Documented
+
+- **Implementation plan**: `docs/Implementation_plan/Voxelization_OpenVDB_NEW.md` — OpenVDB workflow (query → transform → union bounds → voxelize).
+- **API**: `docs/AM_QADF/06-api-reference/voxelization-api.md` — create-grid and related endpoints (when present).
+- **Frontend**: Voxelization UI under Grid Builder — model, resolution, “Use union bounds”, Create Grid.
+
+### Complete Metadata Saved to the Database
+
+When a grid is saved (e.g. auto-save after creation), one document is written to the **`voxel_grids`** collection and the binary VDB is stored in **GridFS**. All of the following fields are stored.
+
+#### 1. Voxel grids collection document (top-level)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_id` | ObjectId | Document ID (used as `grid_id`). |
+| `model_id` | string | Model UUID (e.g. build/part identifier). |
+| `model_name` | string | Human-readable model name (e.g. STL filename). |
+| `grid_name` | string | Grid name (e.g. `uniform_grid_YYYYMMDD_HHMMSS`). |
+| `description` | string | Optional description. |
+| `tags` | array of string | Optional tags. |
+| `metadata` | object | See [Metadata (from grid)](#2-metadata-from-grid) below. |
+| `signal_references` | object | `{ "_openvdb_file": "<GridFS file_id>" }` — reference to the VDB blob in GridFS. |
+| `voxel_data_reference` | null | Not used in OpenVDB path; all data is in the `.vdb` file. |
+| `available_signals` | array of string | e.g. `['velocity', 'power', 'path', 'energy', 'occupancy']`. |
+| `local_vdb_hatching_path` | string or null | **Local filesystem path** to the VDB file for hatching/signals (e.g. `AM-QADF/output/vdb_grids/hatching/<model>_uniform_resolution_<val>.vdb`). Large file; stored locally; path is stored for reference. |
+| `local_vdb_stl_geometry_path` | string or null | **Local filesystem path** to the VDB file for STL geometry/occupancy (e.g. `AM-QADF/output/vdb_grids/stl_geometry/<model>_uniform_resolution_<val>.vdb`). |
+| `created_at` | datetime | UTC creation time. |
+| `updated_at` | datetime | UTC last update time. |
+
+#### 2. Metadata (from grid)
+
+Nested under `metadata`; derived from the grid object at save time:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bbox_min` | [float, float, float] | Grid extent minimum (x, y, z) in mm. |
+| `bbox_max` | [float, float, float] | Grid extent maximum (x, y, z) in mm. |
+| `resolution` | float | Voxel size in mm. |
+| `dims` | [int, int, int] | Grid dimensions (nx, ny, nz). |
+| `aggregation` | string | Aggregation method (e.g. `mean`). |
+| `grid_type` | string | Grid class name (e.g. `VoxelGrid`). |
+| `configuration_metadata` | object | See [Configuration metadata](#3-configuration-metadata) below. |
+
+#### 3. Configuration metadata
+
+Nested under `metadata.configuration_metadata`; comes from the create-grid request and runtime results:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `grid_type` | string | Requested type: `uniform`, `adaptive`, or `multi_resolution`. |
+| `voxel_size` | float or null | Voxel size in mm (uniform). |
+| `min_voxel_size` | float or null | Min voxel size (adaptive/multi). |
+| `max_voxel_size` | float or null | Max voxel size (adaptive/multi). |
+| `resolution_levels` | int or null | Number of levels (multi_resolution). |
+| `coordinate_system` | string | e.g. `machine`. |
+| `aggregation` | string | e.g. `mean`. |
+| `bbox_min` | tuple or null | Request bbox min (null when using union bounds). |
+| `bbox_max` | tuple or null | Request bbox max (null when using union bounds). |
+| `dimensions` | (int, int, int) | Actual grid dimensions (nx, ny, nz). |
+| `voxel_count` | int | Total voxel count. |
+| `memory_usage_mb` | float | Estimated memory in MB. |
+
+#### 4. GridFS (VDB binary)
+
+The full voxel grid is also stored as one **OpenVDB (`.vdb`) file** in GridFS:
+
+- **Filename**: `{grid_id}.vdb`
+- **Content**: Single `.vdb` file containing all signals (occupancy, energy, path, power, velocity, etc.).
+- **GridFS file metadata**:
+  - `grid_id`: Same as document `_id`.
+  - `data_type`: `"voxel_grid"`.
+  - `format`: `"openvdb"`.
+  - `num_signals`: Number of grids in the file.
+  - `signals`: List of signal names.
+
+The document’s `signal_references._openvdb_file` holds the GridFS file ID for this blob. Large VDBs are stored **locally** under the project (`output/vdb_grids/...`); the paths are stored in `local_vdb_hatching_path` and `local_vdb_stl_geometry_path` so clients can use the local files when available.
 
 ## Related
 

@@ -1,73 +1,83 @@
 """
-Notebook Widgets
+Notebook Widgets - ParaView Integration
 
-Interactive Jupyter notebook widgets for voxel visualization.
-Provides component selection, signal selection, and real-time visualization updates.
+Interactive Jupyter notebook widgets for voxel visualization with ParaView.
+Provides controls for exporting to ParaView and launching ParaView with .vdb files.
+
+PRIMARY VISUALIZATION METHOD: ParaView with .vdb files.
+All visualization is done in ParaView - no Python-side rendering needed.
 """
 
 from typing import Optional, List, Dict, Any, Callable
-import numpy as np
+from pathlib import Path
+import logging
 
 try:
     import ipywidgets as widgets
     from ipywidgets import HBox, VBox, Output, interactive
-    from IPython.display import display, clear_output
+    from IPython.display import display, clear_output, HTML
 
     WIDGETS_AVAILABLE = True
 except ImportError:
     WIDGETS_AVAILABLE = False
     widgets = None
     HBox = VBox = Output = None
-    display = clear_output = None
+    display = clear_output = HTML = None
 
-try:
-    import pyvista as pv
-
-    PYVISTA_AVAILABLE = True
-except ImportError:
-    PYVISTA_AVAILABLE = False
-    pv = None
+logger = logging.getLogger(__name__)
 
 
 class VoxelVisualizationWidgets:
     """
-    Interactive widgets for voxel domain visualization.
+    Interactive widgets for voxel domain visualization with ParaView.
 
     Provides:
-    - Component selection (for multi-component builds)
     - Signal type selection
-    - Resolution control
-    - Layer range selection
-    - Colormap selection
-    - Slice position controls
-    - 2x2 grid layout (3D + 3 slices)
+    - Export controls (file name, signals to export)
+    - ParaView launch button
+    - Export status and file information
+    - Component selection (for multi-component builds)
+    - Layer range selection (for filtering)
     """
 
-    def __init__(self, query_client=None, voxel_grid=None, renderer=None):
+    def __init__(
+        self,
+        query_client=None,
+        voxel_grid=None,
+        output_dir: str = "./paraview_exports",
+    ):
         """
         Initialize visualization widgets.
 
         Args:
-            query_client: Query client for data access
-            voxel_grid: VoxelGrid object
-            renderer: VoxelRenderer object
+            query_client: Query client for data access (optional)
+            voxel_grid: VoxelGrid object (required for export)
+            output_dir: Directory to save exported .vdb files (default: "./paraview_exports")
         """
         if not WIDGETS_AVAILABLE:
             raise ImportError("ipywidgets is required. Install with: pip install ipywidgets")
 
         self.query_client = query_client
         self.voxel_grid = voxel_grid
-        self.renderer = renderer
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Output widgets for each section
-        self.output_3d = Output()
-        self.output_slice_x = Output()
-        self.output_slice_y = Output()
-        self.output_slice_z = Output()
+        # Import ParaView functions
+        from .paraview_exporter import export_voxel_grid_to_paraview
+        from .paraview_launcher import launch_paraview, create_paraview_button
+
+        self.export_voxel_grid_to_paraview = export_voxel_grid_to_paraview
+        self.launch_paraview = launch_paraview
+        self.create_paraview_button = create_paraview_button
+
+        # Output widget for status messages
+        self.output_status = Output()
+        self.output_info = Output()
 
         # Widget state
         self._widgets = {}
         self._dashboard = None
+        self._last_exported_file = None
 
     def create_widgets(self) -> VBox:
         """
@@ -76,33 +86,77 @@ class VoxelVisualizationWidgets:
         Returns:
             VBox containing all widgets and outputs
         """
-        # Available signals (from query client or voxel grid)
-        available_signals = ["power", "velocity", "energy"]
+        # Available signals (from voxel grid)
+        available_signals = []
         if self.voxel_grid:
             available_signals = list(self.voxel_grid.available_signals)
+        else:
+            available_signals = ["power", "velocity", "energy"]  # Default
 
-        # Signal selector
-        self._widgets["signal"] = widgets.Dropdown(
-            options=[(s.title(), s) for s in available_signals],
-            value=available_signals[0] if available_signals else "power",
-            description="Signal:",
+        # Signal selector (multi-select for export)
+        self._widgets["signals"] = widgets.SelectMultiple(
+            options=available_signals,
+            value=available_signals if available_signals else [],
+            description="Signals to Export:",
             style={"description_width": "initial"},
+            layout=widgets.Layout(height="150px", width="auto"),
         )
 
-        # Resolution selector
-        self._widgets["resolution"] = widgets.FloatSlider(
-            value=1.0,
-            min=0.1,
-            max=5.0,
-            step=0.1,
-            description="Resolution (mm):",
+        # File name input
+        self._widgets["filename"] = widgets.Text(
+            value="voxel_grid",
+            description="File Name:",
             style={"description_width": "initial"},
+            placeholder="Enter file name (without .vdb extension)",
         )
 
-        # Layer range
-        max_layers = 100  # Default, will be updated if query_client available
+        # Output directory display
+        self._widgets["output_dir_display"] = widgets.HTML(
+            value=f"<b>Output Directory:</b> {self.output_dir.resolve()}"
+        )
+
+        # Export button
+        self._widgets["export_button"] = widgets.Button(
+            description="📦 Export to ParaView",
+            button_style="success",
+            icon="download",
+            tooltip="Export voxel grid to .vdb file",
+        )
+        self._widgets["export_button"].on_click(self._on_export_clicked)
+
+        # Launch ParaView button (will be created after export)
+        self._widgets["launch_button"] = widgets.Button(
+            description="🚀 Launch ParaView",
+            button_style="info",
+            icon="external-link",
+            tooltip="Launch ParaView with exported .vdb file",
+            disabled=True,  # Disabled until export is done
+        )
+        self._widgets["launch_button"].on_click(self._on_launch_clicked)
+
+        # Component selector (if multi-component)
+        components = ["All Components"]  # Default
+        if self.query_client and hasattr(self.query_client, "list_components"):
+            try:
+                components = ["All Components"] + self.query_client.list_components()
+            except:
+                pass
+
+        self._widgets["component"] = widgets.Dropdown(
+            options=components,
+            value=components[0] if components else None,
+            description="Component:",
+            style={"description_width": "initial"},
+            disabled=len(components) <= 1,
+        )
+
+        # Layer range (for filtering/info)
+        max_layers = 100  # Default
         if self.query_client and hasattr(self.query_client, "get_layer_count"):
-            max_layers = self.query_client.get_layer_count()
+            try:
+                max_layers = self.query_client.get_layer_count()
+            except:
+                pass
 
         self._widgets["layer_start"] = widgets.IntSlider(
             value=0,
@@ -122,226 +176,252 @@ class VoxelVisualizationWidgets:
             style={"description_width": "initial"},
         )
 
-        # Component selector (if multi-component)
-        components = ["component_1"]  # Default
-        if self.query_client and hasattr(self.query_client, "list_components"):
-            try:
-                components = self.query_client.list_components()
-            except:
-                pass
-
-        self._widgets["component"] = widgets.Dropdown(
-            options=components,
-            value=components[0] if components else None,
-            description="Component:",
-            style={"description_width": "initial"},
-            disabled=len(components) <= 1,
-        )
-
-        # Colormap selector
-        colormaps = ["plasma", "viridis", "hot", "cool", "inferno", "magma"]
-        self._widgets["colormap"] = widgets.Dropdown(
-            options=colormaps,
-            value="plasma",
-            description="Colormap:",
-            style={"description_width": "initial"},
-        )
-
-        # Slice positions
-        if self.voxel_grid:
-            bbox_min, bbox_max = self.voxel_grid.get_bounding_box()
-            x_range = (bbox_min[0], bbox_max[0])
-            y_range = (bbox_min[1], bbox_max[1])
-            z_range = (bbox_min[2], bbox_max[2])
-        else:
-            x_range = y_range = z_range = (-50, 50)
-
-        self._widgets["slice_x"] = widgets.FloatSlider(
-            value=(x_range[0] + x_range[1]) / 2.0,
-            min=x_range[0],
-            max=x_range[1],
-            step=0.1,
-            description="X Slice:",
-            style={"description_width": "initial"},
-        )
-
-        self._widgets["slice_y"] = widgets.FloatSlider(
-            value=(y_range[0] + y_range[1]) / 2.0,
-            min=y_range[0],
-            max=y_range[1],
-            step=0.1,
-            description="Y Slice:",
-            style={"description_width": "initial"},
-        )
-
-        self._widgets["slice_z"] = widgets.FloatSlider(
-            value=(z_range[0] + z_range[1]) / 2.0,
-            min=z_range[0],
-            max=z_range[1],
-            step=0.1,
-            description="Z Slice:",
-            style={"description_width": "initial"},
-        )
-
-        # Connect widgets to update functions
-        for widget in self._widgets.values():
-            if hasattr(widget, "observe"):
-                widget.observe(self._on_widget_change, names="value")
+        # Grid info display
+        grid_info_html = self._get_grid_info_html()
+        self._widgets["grid_info"] = widgets.HTML(value=grid_info_html)
 
         # Create layout
         controls = VBox(
             [
-                widgets.HTML("<h3>🎛️ Visualization Controls</h3>"),
-                self._widgets["signal"],
+                widgets.HTML("<h3>🎛️ ParaView Export Controls</h3>"),
+                self._widgets["grid_info"],
+                widgets.HTML("<hr>"),
+                self._widgets["signals"],
+                self._widgets["filename"],
+                self._widgets["output_dir_display"],
+                HBox([self._widgets["export_button"], self._widgets["launch_button"]]),
+                widgets.HTML("<hr>"),
+                widgets.HTML("<h4>Filter Options (Info Only)</h4>"),
                 self._widgets["component"],
-                widgets.HBox([self._widgets["layer_start"], self._widgets["layer_end"]]),
-                widgets.HBox([self._widgets["resolution"], self._widgets["colormap"]]),
-                widgets.HTML("<h4>Slice Positions</h4>"),
-                widgets.HBox(
-                    [
-                        self._widgets["slice_x"],
-                        self._widgets["slice_y"],
-                        self._widgets["slice_z"],
-                    ]
-                ),
+                HBox([self._widgets["layer_start"], self._widgets["layer_end"]]),
             ]
         )
 
-        # 2x2 grid layout
-        top_row = HBox(
+        # Status and info section
+        status_section = VBox(
             [
-                VBox(
-                    [widgets.HTML("<h4>3D View</h4>"), self.output_3d],
-                    layout=widgets.Layout(width="48%", border="1px solid #ccc", padding="10px"),
-                ),
-                VBox(
-                    [widgets.HTML("<h4>X Slice</h4>"), self.output_slice_x],
-                    layout=widgets.Layout(width="48%", border="1px solid #ccc", padding="10px"),
-                ),
-            ]
-        )
-
-        bottom_row = HBox(
-            [
-                VBox(
-                    [widgets.HTML("<h4>Y Slice</h4>"), self.output_slice_y],
-                    layout=widgets.Layout(width="48%", border="1px solid #ccc", padding="10px"),
-                ),
-                VBox(
-                    [widgets.HTML("<h4>Z Slice</h4>"), self.output_slice_z],
-                    layout=widgets.Layout(width="48%", border="1px solid #ccc", padding="10px"),
-                ),
-            ]
+                widgets.HTML("<h3>📊 Export Status</h3>"),
+                self.output_status,
+                widgets.HTML("<h3>ℹ️ Information</h3>"),
+                self.output_info,
+            ],
+            layout=widgets.Layout(width="100%", border="1px solid #ccc", padding="10px"),
         )
 
         self._dashboard = VBox(
             [
-                widgets.HTML("<h1>🎨 Voxel Domain Visualization Dashboard</h1>"),
-                controls,
-                widgets.HTML("<hr>"),
-                top_row,
-                bottom_row,
+                widgets.HTML("<h1>🎨 ParaView Visualization Dashboard</h1>"),
+                widgets.HTML(
+                    "<p><b>Primary Visualization Method:</b> ParaView with .vdb files. "
+                    "Export your voxel grid and launch ParaView for superior 3D visualization.</p>"
+                ),
+                HBox(
+                    [controls, status_section],
+                    layout=widgets.Layout(width="100%"),
+                ),
             ]
         )
 
+        # Initialize info display
+        with self.output_info:
+            clear_output()
+            display(
+                HTML(
+                    """
+                    <div style='padding: 10px; background-color: #f0f0f0; border-radius: 5px;'>
+                        <h4>📖 How to Use:</h4>
+                        <ol>
+                            <li>Select signals to export (or leave all selected)</li>
+                            <li>Enter a file name (without .vdb extension)</li>
+                            <li>Click "Export to ParaView" to create .vdb file</li>
+                            <li>Click "Launch ParaView" to open the file in ParaView</li>
+                        </ol>
+                        <p><b>Note:</b> ParaView provides superior 3D visualization, slice views, 
+                        isosurfaces, and more. All visualization is done in ParaView.</p>
+                    </div>
+                    """
+                )
+            )
+
         return self._dashboard
 
-    def _on_widget_change(self, change):
-        """Handle widget value changes."""
-        self.update_visualizations()
+    def _get_grid_info_html(self) -> str:
+        """Get HTML string with grid information."""
+        if not self.voxel_grid:
+            return "<p><i>No voxel grid loaded</i></p>"
 
-    def update_visualizations(self):
-        """Update all visualizations based on current widget values."""
-        if self.renderer is None or self.voxel_grid is None:
+        try:
+            bbox_min, bbox_max = self.voxel_grid.get_bounding_box()
+            resolution = getattr(self.voxel_grid, "resolution", "N/A")
+            dims = getattr(self.voxel_grid, "dims", None)
+            available_signals = list(self.voxel_grid.available_signals)
+
+            dims_str = f"{dims[0]} × {dims[1]} × {dims[2]}" if dims is not None else "N/A"
+
+            return f"""
+            <div style='padding: 10px; background-color: #e8f4f8; border-radius: 5px;'>
+                <h4>📐 Grid Information:</h4>
+                <ul>
+                    <li><b>Resolution:</b> {resolution} mm</li>
+                    <li><b>Dimensions:</b> {dims_str} voxels</li>
+                    <li><b>Bounding Box:</b> ({bbox_min[0]:.2f}, {bbox_min[1]:.2f}, {bbox_min[2]:.2f}) to 
+                        ({bbox_max[0]:.2f}, {bbox_max[1]:.2f}, {bbox_max[2]:.2f}) mm</li>
+                    <li><b>Available Signals:</b> {', '.join(available_signals) if available_signals else 'None'}</li>
+                </ul>
+            </div>
+            """
+        except Exception as e:
+            return f"<p><i>Error getting grid info: {e}</i></p>"
+
+    def _on_export_clicked(self, button):
+        """Handle export button click."""
+        if not self.voxel_grid:
+            with self.output_status:
+                clear_output()
+                display(HTML("<p style='color: red;'>❌ No voxel grid loaded!</p>"))
             return
 
         try:
-            signal = self._widgets["signal"].value
-            colormap = self._widgets["colormap"].value
-            import time
+            # Get selected signals
+            selected_signals = list(self._widgets["signals"].value)
+            if not selected_signals:
+                with self.output_status:
+                    clear_output()
+                    display(HTML("<p style='color: red;'>❌ Please select at least one signal!</p>"))
+                return
 
-            # Render plots sequentially with delays to prevent memory overflow
-            # Update 3D view - display only in output widget
-            with self.output_3d:
-                clear_output(wait=True)
-                try:
-                    plotter = self.renderer.render_3d(
-                        signal_name=signal,
-                        colormap=colormap,
-                        title=f"3D View - {signal.title()}",
-                        auto_show=False,
+            # Get file name
+            filename = self._widgets["filename"].value.strip()
+            if not filename:
+                filename = "voxel_grid"
+
+            # Ensure .vdb extension
+            if not filename.endswith(".vdb"):
+                filename += ".vdb"
+
+            # Create full path
+            output_path = self.output_dir / filename
+
+            # Export to ParaView
+            with self.output_status:
+                clear_output()
+                display(HTML(f"<p>📦 Exporting {len(selected_signals)} signal(s) to ParaView...</p>"))
+
+            vdb_path = self.export_voxel_grid_to_paraview(
+                self.voxel_grid,
+                str(output_path),
+                signal_names=selected_signals if selected_signals else None,
+            )
+
+            self._last_exported_file = vdb_path
+
+            # Enable launch button
+            self._widgets["launch_button"].disabled = False
+
+            # Update status
+            with self.output_status:
+                clear_output()
+                display(
+                    HTML(
+                        f"""
+                        <div style='padding: 10px; background-color: #d4edda; border-radius: 5px;'>
+                            <p style='color: green;'>✅ <b>Export Successful!</b></p>
+                            <p><b>File:</b> {vdb_path}</p>
+                            <p><b>Signals:</b> {', '.join(selected_signals)}</p>
+                            <p>Click "Launch ParaView" to open in ParaView.</p>
+                        </div>
+                        """
                     )
-                    # Show plotter only in this output widget context
-                    plotter.show(jupyter_backend="static")
-                    # Force garbage collection and small delay
-                    import gc
+                )
 
-                    gc.collect()
-                    time.sleep(0.2)
-                except Exception as e:
-                    print(f"Error rendering 3D view: {e}")
-
-            # Update slice views - display only in output widgets (one at a time)
-            with self.output_slice_x:
-                clear_output(wait=True)
-                try:
-                    plotter = self.renderer.render_slice(
-                        signal_name=signal,
-                        axis="x",
-                        position=self._widgets["slice_x"].value,
-                        colormap=colormap,
-                        title=f"X Slice - {signal.title()}",
-                        auto_show=False,
-                    )
-                    plotter.show(jupyter_backend="static")
-                    import gc
-
-                    gc.collect()
-                    time.sleep(0.2)
-                except Exception as e:
-                    print(f"Error rendering X slice: {e}")
-
-            with self.output_slice_y:
-                clear_output(wait=True)
-                try:
-                    plotter = self.renderer.render_slice(
-                        signal_name=signal,
-                        axis="y",
-                        position=self._widgets["slice_y"].value,
-                        colormap=colormap,
-                        title=f"Y Slice - {signal.title()}",
-                        auto_show=False,
-                    )
-                    plotter.show(jupyter_backend="static")
-                    import gc
-
-                    gc.collect()
-                    time.sleep(0.2)
-                except Exception as e:
-                    print(f"Error rendering Y slice: {e}")
-
-            with self.output_slice_z:
-                clear_output(wait=True)
-                try:
-                    plotter = self.renderer.render_slice(
-                        signal_name=signal,
-                        axis="z",
-                        position=self._widgets["slice_z"].value,
-                        colormap=colormap,
-                        title=f"Z Slice - {signal.title()}",
-                        auto_show=False,
-                    )
-                    plotter.show(jupyter_backend="static")
-                    import gc
-
-                    gc.collect()
-                except Exception as e:
-                    print(f"Error rendering Z slice: {e}")
         except Exception as e:
-            print(f"Error in update_visualizations: {e}")
-            import traceback
+            with self.output_status:
+                clear_output()
+                display(
+                    HTML(
+                        f"""
+                        <div style='padding: 10px; background-color: #f8d7da; border-radius: 5px;'>
+                            <p style='color: red;'>❌ <b>Export Failed!</b></p>
+                            <p>Error: {str(e)}</p>
+                        </div>
+                        """
+                    )
+                )
+            logger.error(f"Export failed: {e}", exc_info=True)
 
-            traceback.print_exc()
+    def _on_launch_clicked(self, button):
+        """Handle launch button click."""
+        if not self._last_exported_file:
+            with self.output_status:
+                clear_output()
+                display(HTML("<p style='color: red;'>❌ No file exported yet! Please export first.</p>"))
+            return
+
+        try:
+            with self.output_status:
+                clear_output()
+                display(HTML("<p>🚀 Launching ParaView...</p>"))
+
+            success = self.launch_paraview(self._last_exported_file)
+
+            if success:
+                with self.output_status:
+                    clear_output()
+                    display(
+                        HTML(
+                            f"""
+                            <div style='padding: 10px; background-color: #d4edda; border-radius: 5px;'>
+                                <p style='color: green;'>✅ <b>ParaView Launched!</b></p>
+                                <p>ParaView should open with: <b>{self._last_exported_file}</b></p>
+                                <p>If ParaView doesn't open, please check if ParaView is installed.</p>
+                            </div>
+                            """
+                        )
+                    )
+            else:
+                with self.output_status:
+                    clear_output()
+                    display(
+                        HTML(
+                            f"""
+                            <div style='padding: 10px; background-color: #fff3cd; border-radius: 5px;'>
+                                <p style='color: orange;'>⚠️ <b>ParaView Launch Failed</b></p>
+                                <p>Please check if ParaView is installed and in your PATH.</p>
+                                <p>You can manually open: <b>{self._last_exported_file}</b></p>
+                            </div>
+                            """
+                        )
+                    )
+
+        except Exception as e:
+            with self.output_status:
+                clear_output()
+                display(
+                    HTML(
+                        f"""
+                        <div style='padding: 10px; background-color: #f8d7da; border-radius: 5px;'>
+                            <p style='color: red;'>❌ <b>Launch Failed!</b></p>
+                            <p>Error: {str(e)}</p>
+                        </div>
+                        """
+                    )
+                )
+            logger.error(f"Launch failed: {e}", exc_info=True)
+
+    def set_voxel_grid(self, voxel_grid):
+        """Update the voxel grid and refresh widgets."""
+        self.voxel_grid = voxel_grid
+
+        # Update available signals
+        if voxel_grid:
+            available_signals = list(voxel_grid.available_signals)
+            if "signals" in self._widgets:
+                self._widgets["signals"].options = available_signals
+                self._widgets["signals"].value = available_signals
+
+            # Update grid info
+            if "grid_info" in self._widgets:
+                self._widgets["grid_info"].value = self._get_grid_info_html()
 
     def display(self):
         """Display the widget dashboard."""
@@ -349,11 +429,7 @@ class VoxelVisualizationWidgets:
             if self._dashboard is None:
                 self.create_widgets()
             display(self._dashboard)
-            # Don't render immediately - let user interact first
-            # This prevents kernel crash from rendering 4 plots at once
-            # User can trigger rendering by changing any widget value
-            print("💡 Dashboard displayed. Change any control to generate visualizations.")
-            print("   (Rendering all 4 plots at once can cause kernel crashes)")
+            print("💡 Dashboard displayed. Use the controls to export and launch ParaView.")
         except Exception as e:
             print(f"Error displaying dashboard: {e}")
             import traceback

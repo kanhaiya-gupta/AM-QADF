@@ -18,29 +18,33 @@ flowchart TD
     
     Query --> MetadataExtract["Metadata Extraction<br/>📊 Min, Max, Union, Statistics"]
     
-    MetadataExtract --> Grid1["Grid Creation<br/>🧊 Source 1<br/>STL/Union/Bounds"]
-    MetadataExtract --> Grid2["Grid Creation<br/>🧊 Source 2<br/>STL/Union/Bounds"]
-    MetadataExtract --> Grid3["Grid Creation<br/>🧊 Source N<br/>STL/Union/Bounds"]
+    MetadataExtract --> Sync1["Synchronization<br/>⏰ Temporal & Spatial<br/>Align Points (Point-First)"]
+    MetadataExtract --> Sync2["Synchronization<br/>⏰ Temporal & Spatial<br/>Align Points (Point-First)"]
+    MetadataExtract --> Sync3["Synchronization<br/>⏰ Temporal & Spatial<br/>Align Points (Point-First)"]
+    
+    Sync1 --> Correct1["Correction & Calibration<br/>📐 Source 1"]
+    Sync2 --> Correct2["Correction & Calibration<br/>📐 Source 2"]
+    Sync3 --> Correct3["Correction & Calibration<br/>📐 Source N"]
+    
+    Correct1 --> Process1["Signal Processing<br/>🔧 Source 1"]
+    Correct2 --> Process2["Signal Processing<br/>🔧 Source 2"]
+    Correct3 --> Process3["Signal Processing<br/>🔧 Source N"]
+    
+    Process1 --> Grid1["Grid Creation<br/>🧊 Source 1<br/>Union Bounds"]
+    Process2 --> Grid2["Grid Creation<br/>🧊 Source 2<br/>Union Bounds"]
+    Process3 --> Grid3["Grid Creation<br/>🧊 Source N<br/>Union Bounds"]
     
     Grid1 --> Map1["Signal Mapping<br/>🎯 Map to Grid 1"]
     Grid2 --> Map2["Signal Mapping<br/>🎯 Map to Grid 2"]
     Grid3 --> Map3["Signal Mapping<br/>🎯 Map to Grid N"]
     
-    Map1 --> Sync1["Synchronization<br/>⏰ Temporal & Spatial<br/>Relative to Ground Truth"]
-    Map2 --> Sync2["Synchronization<br/>⏰ Temporal & Spatial<br/>Relative to Ground Truth"]
-    Map3 --> Sync3["Synchronization<br/>⏰ Temporal & Spatial<br/>Relative to Ground Truth"]
+    Map1 --> GridT1["Grid Transformation<br/>📦 OpenVDB"]
+    Map2 --> GridT2["Grid Transformation<br/>📦 OpenVDB"]
+    Map3 --> GridT3["Grid Transformation<br/>📦 OpenVDB"]
     
-    Sync1 --> Correct1["Correction & Calibration<br/>📐 Grid 1"]
-    Sync2 --> Correct2["Correction & Calibration<br/>📐 Grid 2"]
-    Sync3 --> Correct3["Correction & Calibration<br/>📐 Grid N"]
-    
-    Correct1 --> Process1["Signal Processing<br/>🔧 Grid 1"]
-    Correct2 --> Process2["Signal Processing<br/>🔧 Grid 2"]
-    Correct3 --> Process3["Signal Processing<br/>🔧 Grid N"]
-    
-    Process1 --> Fusion["Data Fusion<br/>🔀 Multi-Source Fusion"]
-    Process2 --> Fusion
-    Process3 --> Fusion
+    GridT1 --> Fusion["Data Fusion<br/>🔀 Multi-Source Fusion"]
+    GridT2 --> Fusion
+    GridT3 --> Fusion
     
     Fusion --> Quality["Quality Assessment<br/>✅ Quality Evaluation"]
     
@@ -78,7 +82,7 @@ flowchart TD
     
     class Hatching,Laser,CT,ISPM,Thermal,Metadata input
     class Query,MetadataExtract,Fusion,Quality,Validate process
-    class Grid1,Grid2,Grid3,Map1,Map2,Map3,Sync1,Sync2,Sync3,Correct1,Correct2,Correct3,Process1,Process2,Process3 parallel
+    class Sync1,Sync2,Sync3,Correct1,Correct2,Correct3,Process1,Process2,Process3,Grid1,Grid2,Grid3,Map1,Map2,Map3,GridT1,GridT2,GridT3 parallel
     class Analyze decision
     class Stats,Sensitivity,Anomaly,SPC,Process,Virtual analysis
     class Visualize,Report output
@@ -87,26 +91,25 @@ flowchart TD
 
 ### Workflow Overview
 
-The AM-QADF framework follows a parallel processing workflow where each data source is processed independently before fusion:
+The AM-QADF framework follows a **point-first** pipeline: align and process points before voxelization, then map to grids. Each data source is processed in parallel through the same stages before fusion:
 
 1. **Query & Metadata Extraction**: Query data from multiple sources (hatching paths, laser parameters, CT scans, in-situ monitoring, thermal data) and extract metadata including min/max values, union bounds, and statistical summaries for each source.
 
-2. **Per-Source Grid Creation**: Create separate voxel grids for each data source. Grid bounds can be derived from:
-   - STL file bounding box
-   - Union of data source coordinates
-   - Source-specific bounds
+2. **Synchronization (Point-First)**: Temporally and spatially align **points** (and signals) to a common coordinate system and time reference (e.g. bbox-corner transform, layer/time mapping). Alignment is done on points before voxelization.
 
-3. **Per-Source Signal Mapping**: Map signals separately to their respective grids using interpolation methods (Nearest Neighbor, Linear, IDW, KDE, RBF).
+3. **Correction & Calibration**: Apply geometric distortion correction and calibration to aligned point/signal data (noise reduction, calibration, distortion models).
 
-4. **Per-Source Synchronization**: Temporally and spatially align each grid relative to the Ground Truth (Build System coordinate system).
+4. **Signal Processing**: Process signals and reduce noise (smoothing, outlier detection, optional FFT filtering) on the corrected data.
 
-5. **Per-Source Correction & Calibration**: Apply geometric distortion correction and calibration to each grid independently.
+5. **Per-Source Grid Creation**: Create voxel grids using **union bounds**—the union of aligned data bounding boxes from synchronization. Grid bounds can also be derived from STL or source-specific bounds when provided.
 
-6. **Per-Source Signal Processing**: Process signals and reduce noise for each grid independently.
+6. **Per-Source Signal Mapping**: Map processed signals to their respective grids using interpolation methods (Nearest Neighbor, Linear, IDW, KDE, RBF).
 
-7. **Data Fusion**: Fuse all processed grids into a unified voxel domain.
+7. **Grid Transformation (if required)**: Optionally apply grid-level transformation (e.g. OpenVDB resampling to target transform/bbox) when grid alignment or resampling is needed after signal mapping.
 
-8. **Quality Assessment & Analysis**: Assess quality, perform analytics, detect anomalies, and visualize results.
+8. **Data Fusion**: Fuse all grids into a unified voxel domain.
+
+9. **Quality Assessment & Analysis**: Assess quality, perform analytics, detect anomalies, and visualize results.
 
 ## ✨ Key Features
 
@@ -217,12 +220,13 @@ voxel_client = VoxelDomainClient(
 # The framework automatically:
 # 1. Queries data from multiple sources
 # 2. Extracts metadata (min, max, union, statistics) for each source
-# 3. Creates separate grids for each source
-# 4. Maps signals to their respective grids
-# 5. Synchronizes each grid relative to Ground Truth
-# 6. Corrects and calibrates each grid
-# 7. Processes signals for each grid
-# 8. Fuses all grids into unified voxel domain
+# 3. Synchronizes points (temporal & spatial alignment, point-first)
+# 4. Corrects and calibrates aligned data
+# 5. Processes signals (noise reduction, smoothing)
+# 6. Creates grids from aligned bounds
+# 7. Maps signals to their respective grids
+# 8. Optionally applies grid transformation (OpenVDB)
+# 9. Fuses all grids into unified voxel domain
 
 # Execute complete workflow
 fused_grid = voxel_client.execute_complete_workflow(

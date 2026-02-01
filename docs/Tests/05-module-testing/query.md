@@ -6,7 +6,7 @@
 - `test_hatching_client.py` - Hatching path queries
 - `test_laser_parameter_client.py` - Laser parameter queries
 - `test_ct_scan_client.py` - CT scan queries
-- `test_in_situ_monitoring_client.py` - ISPM queries
+- `test_ispm_thermal_client.py`, `test_ispm_optical_client.py`, `test_ispm_acoustic_client.py`, `test_ispm_plume_client.py`, `test_ispm_strain_client.py` - ISPM client queries
 - `test_unified_query_client.py` - Unified interface
 - `test_stl_model_client.py` - STL model queries
 - `test_thermal_client.py` - Thermal queries

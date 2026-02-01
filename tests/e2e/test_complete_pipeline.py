@@ -13,7 +13,7 @@ from datetime import datetime
 try:
     from am_qadf.query.unified_query_client import UnifiedQueryClient
     from am_qadf.voxel_domain.voxel_domain_client import VoxelDomainClient
-    from am_qadf.voxelization.voxel_grid import VoxelGrid
+    from am_qadf.voxelization.uniform_resolution import VoxelGrid
     from am_qadf.fusion.voxel_fusion import VoxelFusion
     from am_qadf.fusion.fusion_methods import WeightedAverageFusion
     from am_qadf.analytics.quality_assessment.client import QualityAssessmentClient
@@ -120,7 +120,6 @@ class TestCompletePipeline:
 
         # Assertions
         assert result_grid is not None
-        assert len(result_grid.voxels) > 0
         assert len(result_grid.available_signals) > 0
 
         # Verify signals from different sources are present
@@ -168,7 +167,7 @@ class TestCompletePipeline:
         grid2.finalize()
 
         # Fuse the grids
-        fused_result = fusion_client.fuse_voxel_grids(grids=[grid1, grid2], method="weighted_average")
+        fused_result = fusion_client.fuse_grids(grids=[grid1, grid2], strategy="weighted_average")
 
         # Assertions
         assert fused_result is not None

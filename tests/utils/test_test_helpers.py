@@ -59,7 +59,7 @@ class TestAssertVoxelGridValid:
     """Tests for assert_voxel_grid_valid function."""
 
     def test_valid_voxel_grid(self):
-        """Test that valid voxel grid passes."""
+        """Test that valid voxel grid passes (dimensions attribute, e.g. mocks)."""
 
         class MockVoxelGrid:
             def __init__(self):
@@ -67,6 +67,17 @@ class TestAssertVoxelGridValid:
                 self.resolution = 0.1
 
         grid = MockVoxelGrid()
+        assert_voxel_grid_valid(grid)
+
+    def test_valid_voxel_grid_with_dims(self):
+        """Test that valid voxel grid with .dims passes (uniform_resolution.VoxelGrid API)."""
+
+        class MockVoxelGridDims:
+            def __init__(self):
+                self.dims = (10, 20, 30)
+                self.resolution = 0.1
+
+        grid = MockVoxelGridDims()
         assert_voxel_grid_valid(grid)
 
     def test_none_voxel_grid_raises(self):

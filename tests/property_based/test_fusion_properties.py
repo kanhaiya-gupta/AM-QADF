@@ -46,10 +46,10 @@ class TestFusionProperties:
             # Create shuffled version
             signals2[f"signal_{n_signals - 1 - i}"] = values
 
-        # Fuse in different orders
+        # Fuse element-wise (fuse_values takes list of floats per index)
         fusion = AverageFusion()
-        result1 = fusion.fuse(signals1)
-        result2 = fusion.fuse(signals2)
+        result1 = np.array([fusion.fuse_values([signals1[n][i] for n in signals1]) for i in range(array_size)])
+        result2 = np.array([fusion.fuse_values([signals2[n][i] for n in signals2]) for i in range(array_size)])
 
         # Property: Results should be identical (commutative)
         assert np.allclose(result1, result2, atol=1e-10)
@@ -77,9 +77,9 @@ class TestFusionProperties:
         overall_min = min(min_values)
         overall_max = max(max_values)
 
-        # Test with average fusion
+        # Test with average fusion (element-wise)
         fusion = AverageFusion()
-        result = fusion.fuse(signals)
+        result = np.array([fusion.fuse_values([signals[n][i] for n in signals]) for i in range(array_size)])
 
         # Property: Fused values should be within input range
         assert np.all(result >= overall_min - 1e-10)  # Allow small numerical error
@@ -99,9 +99,9 @@ class TestFusionProperties:
             "signal_3": np.full(array_size, signal_value),
         }
 
-        # Fuse
+        # Fuse (element-wise)
         fusion = AverageFusion()
-        result = fusion.fuse(signals)
+        result = np.array([fusion.fuse_values([signals[n][i] for n in signals]) for i in range(array_size)])
 
         # Property: Result should equal input (idempotent for same values)
         assert np.allclose(result, signal_value, atol=1e-10)
@@ -128,9 +128,9 @@ class TestFusionProperties:
         stacked = np.stack(all_values, axis=0)
         expected_max = np.max(stacked, axis=0)
 
-        # Fuse with max
+        # Fuse with max (element-wise)
         fusion = MaxFusion()
-        result = fusion.fuse(signals)
+        result = np.array([fusion.fuse_values([signals[n][i] for n in signals]) for i in range(array_size)])
 
         # Property: Result should equal element-wise max
         assert np.allclose(result, expected_max, atol=1e-10)
@@ -157,9 +157,9 @@ class TestFusionProperties:
         stacked = np.stack(all_values, axis=0)
         expected_min = np.min(stacked, axis=0)
 
-        # Fuse with min
+        # Fuse with min (element-wise)
         fusion = MinFusion()
-        result = fusion.fuse(signals)
+        result = np.array([fusion.fuse_values([signals[n][i] for n in signals]) for i in range(array_size)])
 
         # Property: Result should equal element-wise min
         assert np.allclose(result, expected_min, atol=1e-10)
@@ -184,18 +184,18 @@ class TestFusionProperties:
             weights1[signal_name] = np.random.rand()
             weights2[signal_name] = np.random.rand()
 
-        # Normalize weights
-        sum1 = sum(weights1.values())
-        sum2 = sum(weights2.values())
-        weights1 = {k: v / sum1 for k, v in weights1.items()}
-        weights2 = {k: v / sum2 for k, v in weights2.items()}
+        # Normalize weights to lists (same order as signals)
+        names = list(signals.keys())
+        w1 = [weights1[n] for n in names]
+        w2 = [weights2[n] for n in names]
+        w1 = np.array(w1) / np.sum(w1)
+        w2 = np.array(w2) / np.sum(w2)
 
-        # Fuse with different weights (WeightedAverageFusion takes default_weights, not weights)
-        fusion = WeightedAverageFusion(default_weights=weights1)
-        result1 = fusion.fuse(signals)
-
-        fusion2 = WeightedAverageFusion(default_weights=weights2)
-        result2 = fusion2.fuse(signals)
+        # Fuse element-wise with different weights
+        fusion1 = WeightedAverageFusion(weights=w1.tolist())
+        fusion2 = WeightedAverageFusion(weights=w2.tolist())
+        result1 = np.array([fusion1.fuse_values([signals[n][i] for n in names], weights=w1.tolist()) for i in range(array_size)])
+        result2 = np.array([fusion2.fuse_values([signals[n][i] for n in names], weights=w2.tolist()) for i in range(array_size)])
 
         # Property: Results should be different if weights are different
         # (unless signals are identical)
@@ -225,9 +225,9 @@ class TestFusionProperties:
         stacked = np.stack(all_values, axis=0)
         expected_median = np.median(stacked, axis=0)
 
-        # Fuse with median
+        # Fuse with median (element-wise)
         fusion = MedianFusion()
-        result = fusion.fuse(signals)
+        result = np.array([fusion.fuse_values([signals[n][i] for n in signals]) for i in range(array_size)])
 
         # Property: Result should equal element-wise median
         assert np.allclose(result, expected_median, atol=1e-10)

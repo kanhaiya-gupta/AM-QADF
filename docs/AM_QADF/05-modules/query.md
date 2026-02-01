@@ -99,7 +99,7 @@ Single interface for querying all data sources:
 - **HatchingClient**: Query hatching path data
 - **LaserParameterClient**: Query laser parameter data
 - **CTScanClient**: Query CT scan data
-- **InSituMonitoringClient**: Query ISPM sensor data
+- **ISPMThermalClient, ISPMOpticalClient, ISPMAcousticClient, ISPMStrainClient, ISPMPlumeClient**: Query ISPM sensor data by type
 - **ThermalClient**: Query thermal data
 - **BuildMetadataClient**: Query build process metadata
 

@@ -2,28 +2,46 @@
 AM-QADF Correction Module
 
 Geometric distortion correction and calibration.
-Handles distortion models, calibration data, and validation of corrections.
+All core correction operations are now C++ wrappers.
 """
 
-from .geometric_distortion import (
-    DistortionModel,
-    ScalingModel,
-    RotationModel,
-    WarpingModel,
-    CombinedDistortionModel,
-)
+# C++ wrappers (may be None if C++ bindings not available)
+try:
+    from .geometric_distortion import (
+        DistortionModel,
+        ScalingModel,
+        RotationModel,
+        WarpingModel,
+        CombinedDistortionModel,
+    )
+except (ImportError, NotImplementedError):
+    DistortionModel = None
+    ScalingModel = None
+    RotationModel = None
+    WarpingModel = None
+    CombinedDistortionModel = None
 
-from .calibration import (
-    ReferenceMeasurement,
-    CalibrationData,
-    CalibrationManager,
-)
+try:
+    from .calibration import (
+        ReferenceMeasurement,
+        CalibrationData,
+        CalibrationManager,
+    )
+except (ImportError, NotImplementedError):
+    ReferenceMeasurement = None
+    CalibrationData = None
+    CalibrationManager = None
 
-from .validation import (
-    AlignmentQuality,
-    ValidationMetrics,
-    CorrectionValidator,
-)
+try:
+    from .validation import (
+        AlignmentQuality,
+        ValidationMetrics,
+        CorrectionValidator,
+    )
+except (ImportError, NotImplementedError):
+    AlignmentQuality = None
+    ValidationMetrics = None
+    CorrectionValidator = None
 
 __all__ = [
     # Geometric distortion

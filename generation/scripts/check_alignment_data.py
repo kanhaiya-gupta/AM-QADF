@@ -34,7 +34,7 @@ if env_file.exists():
 try:
     from src.infrastructure.config import MongoDBConfig
     from src.infrastructure.database import MongoDBClient
-    from am_qadf.synchronization import AlignmentStorage
+    # Note: AlignmentStorage removed - alignment results now stored in OpenVDB format with grid metadata
     
     def get_mongodb_config():
         """Get MongoDB config from environment."""

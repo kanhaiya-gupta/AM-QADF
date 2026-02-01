@@ -72,7 +72,7 @@ def generate_hatching_paths():
                 "scan_speed": float(1000.0 + np.random.rand() * 200.0),
                 "energy_density": float(50.0 + np.random.rand() * 20.0),
                 "laser_beam_width": 0.1,
-                "hatch_spacing": 0.1,
+                "hatch_spacing": 0.15,  # 0.15mm spacing allows gaps to be visible at 0.1mm voxel resolution
                 "overlap_percentage": float(50.0 + np.random.rand() * 10.0),
                 "hatch_type": "line",
                 "scan_order": hatch_idx,
